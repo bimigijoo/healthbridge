@@ -32,4 +32,9 @@ public class MedicalDocument {
 
     @Column(nullable = false)
     private LocalDateTime uploadedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        uploadedAt = LocalDateTime.now();
+    }
 }

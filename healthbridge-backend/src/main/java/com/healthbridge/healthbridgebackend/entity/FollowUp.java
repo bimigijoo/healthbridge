@@ -42,4 +42,9 @@ public class FollowUp {
         PENDING,
         COMPLETED
     }
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 }

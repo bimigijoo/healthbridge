@@ -31,4 +31,9 @@ public class AccessLog {
 
     @Column(nullable = false)
     private String action;
+
+    @PrePersist
+    protected void onCreate() {
+        accessedAt = LocalDateTime.now();
+    }
 }

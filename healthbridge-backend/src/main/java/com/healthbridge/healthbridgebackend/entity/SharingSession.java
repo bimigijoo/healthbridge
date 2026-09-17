@@ -39,4 +39,13 @@ public class SharingSession {
     private String providerFacility;
 
     private String providerRegistration;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+
+        if (revoked) {
+            revoked = false;
+        }
+    }
 }
