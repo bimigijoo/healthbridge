@@ -1,17 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
-
-const recordTypes = [
-    "CONSULTATION",
-    "DIAGNOSIS",
-    "MEDICATION",
-    "VACCINATION",
-    "PRESCRIPTION",
-    "LAB_REPORT",
-    "OTHER",
-];
 
 function MedicalRecordsPage() {
     const { user } = useAuth();
@@ -19,115 +9,210 @@ function MedicalRecordsPage() {
 
     const [healthProfile, setHealthProfile] = useState(null);
     const [records, setRecords] = useState([]);
+    const [documents, setDocuments] = useState({});
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [uploadingRecordId, setUploadingRecordId] = useState(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    const [formData, setFormData] = useState({
-        recordType: "CONSULTATION",
-        recordDate: "",
-        providerName: "",
-        providerFacility: "",
-        reason: "",
-        diagnosis: "",
-        medication: "",
-        notes: "",
-    });
+    const loadDocuments = useCallback(async (recordList) => {
+        const documentMap = {};
 
-    useEffect(() => {
-        const loadData = async () => {
-            try {
-                const profileResponse = await api.get(
-                    `/health-profile/user/${user.id}`
-                );
+        await Promise.all(
+            recordList.map(async (record) => {
+                try {
+                    const response = await api.get(
+                        `/medical-documents/record/${record.id}`
+                    );
 
-                const profile = profileResponse.data;
+                    documentMap[record.id] = response.data;
+                } catch (err) {
+                    console.error(
+                        `Unable to load documents for record ${record.id}`,
+                        err
+                    );
 
-                setHealthProfile(profile);
+                    documentMap[record.id] = [];
+                }
+            })
+        );
 
-                const recordsResponse = await api.get(
-                    `/medical-records/profile/${profile.id}`
-                );
+        return documentMap;
+    }, []);
 
-                setRecords(recordsResponse.data);
-            } catch {
-                setError(
-                    "Unable to load your medical records."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (user?.id) {
-            void loadData();
-        }
-    }, [user]);
-
-    const handleChange = (event) => {
-        const { name, value } = event.target;
-
-        setFormData((previous) => ({
-            ...previous,
-            [name]: value,
-        }));
-    };
-
-    const handleSubmit = async (event) => {
-        event.preventDefault();
-
-        if (!healthProfile) {
-            setError(
-                "A health profile is required before adding a medical record."
-            );
+    const loadData = useCallback(async () => {
+        if (!user?.id) {
             return;
         }
 
-        setSaving(true);
+        try {
+            setError("");
+
+            const profileResponse = await api.get(
+                `/health-profile/user/${user.id}`
+            );
+
+            const profile = profileResponse.data;
+
+            const recordsResponse = await api.get(
+                `/medical-records/profile/${profile.id}`
+            );
+
+            const recordList = recordsResponse.data;
+
+            const documentMap = await loadDocuments(recordList);
+
+            setHealthProfile(profile);
+            setRecords(recordList);
+            setDocuments(documentMap);
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err.response?.data?.message ||
+                "Unable to load your medical records."
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, [user, loadDocuments]);
+
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            void loadData();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [loadData]);
+
+    const handleDocumentUpload = async (event, recordId) => {
+        const file = event.target.files?.[0];
+
+        event.target.value = "";
+
+        if (!file) {
+            return;
+        }
+
+        setError("");
+        setSuccess("");
+        setUploadingRecordId(recordId);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await api.post(
+                `/medical-documents/upload/${recordId}`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
+
+            setDocuments((previous) => ({
+                ...previous,
+                [recordId]: [
+                    ...(previous[recordId] || []),
+                    response.data,
+                ],
+            }));
+
+            setSuccess(
+                "Medical document uploaded successfully."
+            );
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err.response?.data?.message ||
+                "Unable to upload the medical document."
+            );
+        } finally {
+            setUploadingRecordId(null);
+        }
+    };
+
+    const handleDownload = async (document) => {
         setError("");
         setSuccess("");
 
         try {
-            const response = await api.post(
-                "/medical-records",
+            const response = await api.get(
+                `/medical-documents/${document.id}/download`,
                 {
-                    healthProfileId: healthProfile.id,
-                    ...formData,
+                    responseType: "blob",
                 }
             );
 
-            setRecords((previous) => [
-                response.data,
-                ...previous,
-            ]);
+            const blobUrl = URL.createObjectURL(response.data);
 
-            setFormData({
-                recordType: "CONSULTATION",
-                recordDate: "",
-                providerName: "",
-                providerFacility: "",
-                reason: "",
-                diagnosis: "",
-                medication: "",
-                notes: "",
-            });
+            const link = window.document.createElement("a");
 
-            setSuccess(
-                "Medical record added successfully."
-            );
-        } catch {
+            link.href = blobUrl;
+            link.download =
+                document.fileName || "medical-document";
+
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error(err);
+
             setError(
-                "Unable to add the medical record."
+                err.response?.data?.message ||
+                "Unable to download the medical document."
             );
-        } finally {
-            setSaving(false);
         }
     };
 
-    const handleDelete = async (recordId) => {
+    const handleDeleteDocument = async (document) => {
         const confirmed = window.confirm(
-            "Are you sure you want to delete this medical record?"
+            `Are you sure you want to delete "${document.fileName}"?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setError("");
+        setSuccess("");
+
+        try {
+            await api.delete(
+                `/medical-documents/${document.id}`
+            );
+
+            setDocuments((previous) => ({
+                ...previous,
+                [document.medicalRecordId]:
+                    (previous[document.medicalRecordId] || []).filter(
+                        (item) => item.id !== document.id
+                    ),
+            }));
+
+            setSuccess(
+                "Medical document deleted successfully."
+            );
+        } catch (err) {
+            console.error(err);
+
+            setError(
+                err.response?.data?.message ||
+                "Unable to delete the medical document."
+            );
+        }
+    };
+
+    const handleDeleteRecord = async (recordId) => {
+        const confirmed = window.confirm(
+            "Deleting a medical record may also affect its associated documents. Are you sure you want to continue?"
         );
 
         if (!confirmed) {
@@ -148,14 +233,31 @@ function MedicalRecordsPage() {
                 )
             );
 
+            setDocuments((previous) => {
+                const updated = { ...previous };
+                delete updated[recordId];
+                return updated;
+            });
+
             setSuccess(
                 "Medical record deleted successfully."
             );
-        } catch {
+        } catch (err) {
+            console.error(err);
+
             setError(
+                err.response?.data?.message ||
                 "Unable to delete the medical record."
             );
         }
+    };
+
+    const formatDate = (value) => {
+        if (!value) {
+            return "—";
+        }
+
+        return new Date(value).toLocaleDateString();
     };
 
     if (loading) {
@@ -168,12 +270,13 @@ function MedicalRecordsPage() {
 
     return (
         <div className="page-container">
-
             <header className="page-header">
                 <div>
                     <h1>Medical Records</h1>
+
                     <p>
-                        View and manage your digital medical history.
+                        View your digital medical history and
+                        manage supporting documents.
                     </p>
                 </div>
 
@@ -199,257 +302,275 @@ function MedicalRecordsPage() {
             )}
 
             <section className="profile-card">
+                <div className="records-intro">
+                    <h2>My Medical Records</h2>
 
-                <h2>Add Medical Record</h2>
+                    <p>
+                        Medical records are added through authorized
+                        healthcare interactions. You can review
+                        them here and manage supporting documents.
+                    </p>
+                </div>
 
-                <form
-                    className="profile-form"
-                    onSubmit={handleSubmit}
-                >
+                {records.length === 0 ? (
+                    <div className="empty-state">
+                        <h3>No medical records found</h3>
 
-                    <div className="form-group">
-                        <label htmlFor="recordType">
-                            Record Type
-                        </label>
+                        <p>
+                            Your medical history will appear here
+                            when records are added through
+                            HealthBridge.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="records-list">
+                        {records.map((record) => {
+                            const recordDocuments =
+                                documents[record.id] || [];
 
-                        <select
-                            id="recordType"
-                            name="recordType"
-                            value={formData.recordType}
-                            onChange={handleChange}
-                            required
-                        >
-                            {recordTypes.map((type) => (
-                                <option
-                                    key={type}
-                                    value={type}
+                            return (
+                                <article
+                                    className="record-card"
+                                    key={record.id}
                                 >
-                                    {type.replace("_", " ")}
-                                </option>
-                            ))}
-                        </select>
+                                    <div className="record-header">
+                                        <div>
+                                            <h3>
+                                                {record.recordType
+                                                    ? record.recordType.replace(
+                                                        /_/g,
+                                                        " "
+                                                    )
+                                                    : "MEDICAL RECORD"}
+                                            </h3>
+
+                                            <p>
+                                                Record date:{" "}
+                                                {formatDate(
+                                                    record.recordDate
+                                                )}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            className="danger-button"
+                                            onClick={() =>
+                                                handleDeleteRecord(
+                                                    record.id
+                                                )
+                                            }
+                                        >
+                                            Delete
+                                        </button>
+                                    </div>
+
+                                    <div className="record-details">
+                                        {record.providerName && (
+                                            <p>
+                                                <strong>
+                                                    Provider:
+                                                </strong>{" "}
+                                                {record.providerName}
+                                            </p>
+                                        )}
+
+                                        {record.providerFacility && (
+                                            <p>
+                                                <strong>
+                                                    Facility:
+                                                </strong>{" "}
+                                                {record.providerFacility}
+                                            </p>
+                                        )}
+
+                                        {record.reason && (
+                                            <p>
+                                                <strong>
+                                                    Reason:
+                                                </strong>{" "}
+                                                {record.reason}
+                                            </p>
+                                        )}
+
+                                        {record.diagnosis && (
+                                            <p>
+                                                <strong>
+                                                    Diagnosis:
+                                                </strong>{" "}
+                                                {record.diagnosis}
+                                            </p>
+                                        )}
+
+                                        {record.medication && (
+                                            <p>
+                                                <strong>
+                                                    Medication:
+                                                </strong>{" "}
+                                                {record.medication}
+                                            </p>
+                                        )}
+
+                                        {record.notes && (
+                                            <p>
+                                                <strong>
+                                                    Notes:
+                                                </strong>{" "}
+                                                {record.notes}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div className="documents-section">
+                                        <div className="documents-header">
+                                            <div>
+                                                <h4>
+                                                    Supporting Documents
+                                                </h4>
+
+                                                <p>
+                                                    Upload reports,
+                                                    prescriptions, or
+                                                    other files related
+                                                    to this record.
+                                                </p>
+                                            </div>
+
+                                            <label
+                                                style={
+                                                    styles.uploadButton
+                                                }
+                                            >
+                                                {uploadingRecordId ===
+                                                record.id
+                                                    ? "Uploading..."
+                                                    : "Upload Document"}
+
+                                                <input
+                                                    type="file"
+                                                    hidden
+                                                    disabled={
+                                                        uploadingRecordId ===
+                                                        record.id
+                                                    }
+                                                    onChange={(event) =>
+                                                        handleDocumentUpload(
+                                                            event,
+                                                            record.id
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+                                        </div>
+
+                                        {recordDocuments.length ===
+                                        0 ? (
+                                            <p className="document-empty">
+                                                No supporting documents
+                                                attached.
+                                            </p>
+                                        ) : (
+                                            <div className="document-list">
+                                                {recordDocuments.map(
+                                                    (document) => (
+                                                        <div
+                                                            className="document-item"
+                                                            key={
+                                                                document.id
+                                                            }
+                                                        >
+                                                            <div>
+                                                                <strong>
+                                                                    {
+                                                                        document.fileName
+                                                                    }
+                                                                </strong>
+
+                                                                <p>
+                                                                    {document.fileType ||
+                                                                        "Unknown file type"}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="document-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="secondary-button"
+                                                                    onClick={() =>
+                                                                        handleDownload(
+                                                                            document
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Download
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    className="danger-button"
+                                                                    onClick={() =>
+                                                                        handleDeleteDocument(
+                                                                            document
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </article>
+                            );
+                        })}
                     </div>
-
-                    <div className="form-group">
-                        <label htmlFor="recordDate">
-                            Record Date
-                        </label>
-
-                        <input
-                            id="recordDate"
-                            name="recordDate"
-                            type="date"
-                            value={formData.recordDate}
-                            onChange={handleChange}
-                            required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="providerName">
-                            Provider Name
-                        </label>
-
-                        <input
-                            id="providerName"
-                            name="providerName"
-                            value={formData.providerName}
-                            onChange={handleChange}
-                            placeholder="Doctor or healthcare provider"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="providerFacility">
-                            Provider Facility
-                        </label>
-
-                        <input
-                            id="providerFacility"
-                            name="providerFacility"
-                            value={formData.providerFacility}
-                            onChange={handleChange}
-                            placeholder="Hospital, clinic or laboratory"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="reason">
-                            Reason
-                        </label>
-
-                        <textarea
-                            id="reason"
-                            name="reason"
-                            value={formData.reason}
-                            onChange={handleChange}
-                            placeholder="Reason for the visit"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="diagnosis">
-                            Diagnosis
-                        </label>
-
-                        <textarea
-                            id="diagnosis"
-                            name="diagnosis"
-                            value={formData.diagnosis}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="medication">
-                            Medication
-                        </label>
-
-                        <textarea
-                            id="medication"
-                            name="medication"
-                            value={formData.medication}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label htmlFor="notes">
-                            Notes
-                        </label>
-
-                        <textarea
-                            id="notes"
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleChange}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        className="primary-button"
-                        disabled={saving}
-                    >
-                        {saving
-                            ? "Saving..."
-                            : "Add Medical Record"}
-                    </button>
-
-                </form>
-
+                )}
             </section>
 
             <section className="profile-card">
+                <h2>Record Management</h2>
 
-                <h2>My Medical Records</h2>
+                <p>
+                    Your HealthBridge medical history remains
+                    available through your Health ID and can be
+                    selectively shared with healthcare providers
+                    through temporary access.
+                </p>
 
-                {records.length === 0 ? (
+                {healthProfile?.healthId && (
                     <p>
-                        No medical records found.
+                        <strong>Health ID:</strong>{" "}
+                        {healthProfile.healthId}
                     </p>
-                ) : (
-                    <div className="records-list">
-
-                        {records.map((record) => (
-                            <article
-                                className="record-card"
-                                key={record.id}
-                            >
-                                <div className="record-header">
-                                    <div>
-                                        <h3>
-                                            {record.recordType.replace(
-                                                "_",
-                                                " "
-                                            )}
-                                        </h3>
-
-                                        <p>
-                                            {record.recordDate}
-                                        </p>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        className="danger-button"
-                                        onClick={() =>
-                                            handleDelete(
-                                                record.id
-                                            )
-                                        }
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-
-                                <div className="record-details">
-
-                                    {record.providerName && (
-                                        <p>
-                                            <strong>
-                                                Provider:
-                                            </strong>{" "}
-                                            {record.providerName}
-                                        </p>
-                                    )}
-
-                                    {record.providerFacility && (
-                                        <p>
-                                            <strong>
-                                                Facility:
-                                            </strong>{" "}
-                                            {record.providerFacility}
-                                        </p>
-                                    )}
-
-                                    {record.reason && (
-                                        <p>
-                                            <strong>
-                                                Reason:
-                                            </strong>{" "}
-                                            {record.reason}
-                                        </p>
-                                    )}
-
-                                    {record.diagnosis && (
-                                        <p>
-                                            <strong>
-                                                Diagnosis:
-                                            </strong>{" "}
-                                            {record.diagnosis}
-                                        </p>
-                                    )}
-
-                                    {record.medication && (
-                                        <p>
-                                            <strong>
-                                                Medication:
-                                            </strong>{" "}
-                                            {record.medication}
-                                        </p>
-                                    )}
-
-                                    {record.notes && (
-                                        <p>
-                                            <strong>
-                                                Notes:
-                                            </strong>{" "}
-                                            {record.notes}
-                                        </p>
-                                    )}
-
-                                </div>
-                            </article>
-                        ))}
-
-                    </div>
                 )}
 
+                <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => navigate("/share-records")}
+                >
+                    Share Selected Records
+                </button>
             </section>
-
         </div>
     );
 }
+
+const styles = {
+    uploadButton: {
+        display: "inline-block",
+        padding: "10px 16px",
+        borderRadius: "7px",
+        background: "#2563eb",
+        color: "#fff",
+        cursor: "pointer",
+        fontWeight: "600",
+        border: "none",
+        textAlign: "center",
+    },
+};
 
 export default MedicalRecordsPage;
