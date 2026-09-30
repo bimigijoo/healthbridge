@@ -4,6 +4,9 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import HealthProfilePage from "./pages/HealthProfilePage";
 import HealthPassportPage from "./pages/HealthPassportPage";
+import MedicalRecordsPage from "./pages/MedicalRecordsPage";
+import ShareRecordsPage from "./pages/ShareRecordsPage.jsx";
+import ProviderAccessPage from "./pages/ProviderAccessPage";
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated } = useAuth();
@@ -55,6 +58,29 @@ function App() {
                         <HealthPassportPage />
                     </ProtectedRoute>
                 }
+            />
+
+            <Route
+                path="/medical-records"
+                element={
+                    <ProtectedRoute>
+                        <MedicalRecordsPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/share-records"
+                element={
+                    <ProtectedRoute>
+                        <ShareRecordsPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/provider-access"
+                element={<ProviderAccessPage />}
             />
 
             <Route

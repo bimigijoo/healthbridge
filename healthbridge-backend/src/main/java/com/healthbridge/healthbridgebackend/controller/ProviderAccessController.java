@@ -2,6 +2,7 @@ package com.healthbridge.healthbridgebackend.controller;
 
 import com.healthbridge.healthbridgebackend.dto.MedicalRecordResponse;
 import com.healthbridge.healthbridgebackend.dto.ProviderAccessResponse;
+import com.healthbridge.healthbridgebackend.dto.ProviderConsultationRequest;
 import com.healthbridge.healthbridgebackend.entity.AccessLog;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
@@ -9,8 +10,10 @@ import com.healthbridge.healthbridgebackend.entity.SharedRecord;
 import com.healthbridge.healthbridgebackend.entity.SharingSession;
 import com.healthbridge.healthbridgebackend.service.AccessLogService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
+import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
 import com.healthbridge.healthbridgebackend.service.SharedRecordService;
 import com.healthbridge.healthbridgebackend.service.SharingSessionService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,17 +26,20 @@ public class ProviderAccessController {
     private final SharingSessionService sharingSessionService;
     private final SharedRecordService sharedRecordService;
     private final HealthProfileService healthProfileService;
+    private final MedicalRecordService medicalRecordService;
     private final AccessLogService accessLogService;
 
     public ProviderAccessController(
             SharingSessionService sharingSessionService,
             SharedRecordService sharedRecordService,
             HealthProfileService healthProfileService,
+            MedicalRecordService medicalRecordService,
             AccessLogService accessLogService) {
 
         this.sharingSessionService = sharingSessionService;
         this.sharedRecordService = sharedRecordService;
         this.healthProfileService = healthProfileService;
+        this.medicalRecordService = medicalRecordService;
         this.accessLogService = accessLogService;
     }
 
@@ -50,7 +56,8 @@ public class ProviderAccessController {
             return ResponseEntity.status(403).build();
         }
 
-        HealthProfile healthProfile = session.getHealthProfile();
+        HealthProfile healthProfile =
+                session.getHealthProfile();
 
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
@@ -85,6 +92,81 @@ public class ProviderAccessController {
                 );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{accessToken}/consultation")
+    public ResponseEntity<MedicalRecordResponse> addConsultation(
+            @PathVariable String accessToken,
+            @Valid @RequestBody ProviderConsultationRequest request) {
+
+        SharingSession session =
+                sharingSessionService
+                        .findValidSessionByAccessToken(accessToken)
+                        .orElse(null);
+
+        if (session == null) {
+            return ResponseEntity.status(403).build();
+        }
+
+        HealthProfile healthProfile =
+                session.getHealthProfile();
+
+        if (healthProfile == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        MedicalRecord consultation =
+                new MedicalRecord();
+
+        consultation.setHealthProfile(healthProfile);
+        consultation.setRecordType(
+                MedicalRecord.RecordType.CONSULTATION
+        );
+        consultation.setRecordDate(
+                request.getRecordDate()
+        );
+        consultation.setProviderName(
+                request.getProviderName()
+        );
+        consultation.setProviderFacility(
+                request.getProviderFacility()
+        );
+        consultation.setReason(
+                request.getReason()
+        );
+        consultation.setDiagnosis(
+                request.getDiagnosis()
+        );
+        consultation.setMedication(
+                request.getMedication()
+        );
+        consultation.setNotes(
+                request.getNotes()
+        );
+
+        MedicalRecord savedRecord =
+                medicalRecordService.saveRecord(
+                        consultation
+                );
+
+        AccessLog accessLog = new AccessLog();
+
+        accessLog.setSharingSession(session);
+        accessLog.setProviderName(
+                request.getProviderName()
+        );
+        accessLog.setProviderFacility(
+                request.getProviderFacility()
+        );
+        accessLog.setAction(
+                "ADD_CONSULTATION"
+        );
+
+        accessLogService.saveLog(accessLog);
+
+        return ResponseEntity
+                .status(201)
+                .body(toResponse(savedRecord));
     }
 
     private MedicalRecordResponse toResponse(
