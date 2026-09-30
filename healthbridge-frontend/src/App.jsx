@@ -7,6 +7,7 @@ import HealthPassportPage from "./pages/HealthPassportPage";
 import MedicalRecordsPage from "./pages/MedicalRecordsPage";
 import ShareRecordsPage from "./pages/ShareRecordsPage.jsx";
 import ProviderAccessPage from "./pages/ProviderAccessPage";
+import HealthTimelinePage from "./pages/HealthTimelinePage";
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated } = useAuth();
@@ -25,8 +26,6 @@ function App() {
                 path="/"
                 element={<Navigate to="/login" replace />}
             />
-
-
 
             <Route
                 path="/login"
@@ -74,6 +73,15 @@ function App() {
                 element={
                     <ProtectedRoute>
                         <ShareRecordsPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/health-timeline"
+                element={
+                    <ProtectedRoute>
+                        <HealthTimelinePage />
                     </ProtectedRoute>
                 }
             />
