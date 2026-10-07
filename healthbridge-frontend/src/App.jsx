@@ -8,6 +8,8 @@ import MedicalRecordsPage from "./pages/MedicalRecordsPage";
 import ShareRecordsPage from "./pages/ShareRecordsPage.jsx";
 import ProviderAccessPage from "./pages/ProviderAccessPage";
 import HealthTimelinePage from "./pages/HealthTimelinePage";
+import RegisterPage from "./pages/RegisterPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated } = useAuth();
@@ -30,6 +32,11 @@ function App() {
             <Route
                 path="/login"
                 element={<LoginPage />}
+            />
+
+            <Route
+                path="/register"
+                element={<RegisterPage />}
             />
 
             <Route
@@ -94,6 +101,24 @@ function App() {
             <Route
                 path="*"
                 element={<Navigate to="/login" replace />}
+            />
+
+            <Route
+                path="/dashboard"
+                element={
+                    <ProtectedRoute>
+                        <DashboardPage />
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute>
+                        <AdminDashboardPage />
+                    </ProtectedRoute>
+                }
             />
         </Routes>
     );

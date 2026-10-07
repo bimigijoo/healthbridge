@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function LoginPage() {
+function RegisterPage() {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { register } = useAuth();
 
     const [formData, setFormData] = useState({
+        name: "",
         email: "",
         password: "",
     });
@@ -30,24 +31,17 @@ function LoginPage() {
         setSubmitting(true);
 
         try {
-            await login(
+            await register(
+                formData.name,
                 formData.email,
                 formData.password
             );
 
-            const loggedInUser = JSON.parse(
-                localStorage.getItem("healthbridge_user")
-            );
-
-            if (loggedInUser?.role === "ADMIN") {
-                navigate("/admin");
-            } else {
-                navigate("/dashboard");
-            }
+            navigate("/dashboard");
         } catch (err) {
             const message =
                 err.response?.data?.message ||
-                "Login failed. Please check your email and password.";
+                "Registration failed. Please try again.";
 
             setError(message);
         } finally {
@@ -62,7 +56,7 @@ function LoginPage() {
                 <div className="auth-header">
                     <h1>HealthBridge</h1>
                     <p>
-                        Digital Health Record Management
+                        Create your HealthBridge account
                     </p>
                 </div>
 
@@ -70,6 +64,22 @@ function LoginPage() {
                     className="auth-form"
                     onSubmit={handleSubmit}
                 >
+                    <div className="form-group">
+                        <label htmlFor="name">
+                            Full Name
+                        </label>
+
+                        <input
+                            id="name"
+                            name="name"
+                            type="text"
+                            value={formData.name}
+                            onChange={handleChange}
+                            placeholder="Enter your full name"
+                            required
+                        />
+                    </div>
+
                     <div className="form-group">
                         <label htmlFor="email">
                             Email
@@ -97,7 +107,8 @@ function LoginPage() {
                             type="password"
                             value={formData.password}
                             onChange={handleChange}
-                            placeholder="Enter your password"
+                            placeholder="Create a password"
+                            minLength={6}
                             required
                         />
                     </div>
@@ -114,24 +125,22 @@ function LoginPage() {
                         disabled={submitting}
                     >
                         {submitting
-                            ? "Signing in..."
-                            : "Sign In"}
+                            ? "Creating account..."
+                            : "Create Account"}
                     </button>
                 </form>
 
                 <div className="auth-footer">
                     <p>
-                        Don't have an account?
+                        Already have an account?
                     </p>
 
                     <button
                         type="button"
                         className="link-button"
-                        onClick={() =>
-                            navigate("/register")
-                        }
+                        onClick={() => navigate("/login")}
                     >
-                        Create an account
+                        Back to Login
                     </button>
                 </div>
 
@@ -140,4 +149,4 @@ function LoginPage() {
     );
 }
 
-export default LoginPage;
+export default RegisterPage;

@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.entity.User;
 import com.healthbridge.healthbridgebackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -29,5 +30,9 @@ public class UserService {
 
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
+    }
+
+    public List<User> findAll() {
+        return userRepository.findAll();
     }
 }

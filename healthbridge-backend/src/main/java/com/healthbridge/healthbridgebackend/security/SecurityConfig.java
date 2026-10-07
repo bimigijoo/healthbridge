@@ -55,6 +55,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/provider-access/**")
                         .permitAll()
 
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+
                         .anyRequest()
                         .authenticated()
                 )
@@ -74,7 +77,8 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173",
+                List.of(
+                        "http://localhost:5173",
                         "http://localhost:5174"
                 )
         );
