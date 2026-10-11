@@ -45,11 +45,27 @@ function LoginPage() {
                 navigate("/dashboard");
             }
         } catch (err) {
-            const message =
-                err.response?.data?.message ||
-                "Login failed. Please check your email and password.";
+            const status = err.response?.status;
+            const backendMessage = err.response?.data?.message;
 
-            setError(message);
+            if (status === 403 && backendMessage) {
+                setError(backendMessage);
+            } else if (status === 401) {
+                setError(
+                    backendMessage ||
+                    "Invalid email or password. Please try again."
+                );
+            } else if (!err.response) {
+                setError(
+                    "Unable to connect to HealthBridge. " +
+                    "Please check your connection and try again."
+                );
+            } else {
+                setError(
+                    "We couldn't sign you in right now. " +
+                    "Please try again later."
+                );
+            }
         } finally {
             setSubmitting(false);
         }
@@ -82,6 +98,7 @@ function LoginPage() {
                             value={formData.email}
                             onChange={handleChange}
                             placeholder="Enter your email"
+                            autoComplete="username"
                             required
                         />
                     </div>
@@ -98,12 +115,17 @@ function LoginPage() {
                             value={formData.password}
                             onChange={handleChange}
                             placeholder="Enter your password"
+                            autoComplete="current-password"
                             required
                         />
                     </div>
 
                     {error && (
-                        <div className="error-message">
+                        <div
+                            className="error-message"
+                            role="alert"
+                            aria-live="polite"
+                        >
                             {error}
                         </div>
                     )}
