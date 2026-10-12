@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -42,11 +43,21 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(
+    public ResponseEntity<?> register(
             @Valid @RequestBody RegisterRequest request) {
 
+        if (request.getPassword().getBytes(StandardCharsets.UTF_8).length > 72) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Password exceeds the supported length."));
+        }
+
         if (userService.existsByEmail(request.getEmail())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(Map.of(
+                            "message",
+                            "An account with this email already exists."
+                    ));
         }
 
         User user = new User();

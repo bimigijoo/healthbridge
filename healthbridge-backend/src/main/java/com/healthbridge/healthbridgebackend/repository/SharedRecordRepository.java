@@ -8,4 +8,6 @@ import java.util.List;
 public interface SharedRecordRepository extends JpaRepository<SharedRecord, Long> {
 
     List<SharedRecord> findBySharingSessionId(Long sharingSessionId);
+
+    void deleteByMedicalRecordId(Long medicalRecordId);
 }

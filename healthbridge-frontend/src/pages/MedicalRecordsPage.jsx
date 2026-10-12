@@ -26,13 +26,8 @@ function MedicalRecordsPage() {
                     );
 
                     documentMap[record.id] = response.data;
-                } catch (err) {
-                    console.error(
-                        `Unable to load documents for record ${record.id}`,
-                        err
-                    );
-
-                    documentMap[record.id] = [];
+                } catch {
+                    documentMap[record.id] = null;
                 }
             })
         );
@@ -67,8 +62,6 @@ function MedicalRecordsPage() {
             setRecords(recordList);
             setDocuments(documentMap);
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to load your medical records."
@@ -99,6 +92,12 @@ function MedicalRecordsPage() {
 
         setError("");
         setSuccess("");
+
+        if (file.size > 10 * 1024 * 1024 ||
+            !/\.(pdf|jpe?g|png|webp)$/i.test(file.name)) {
+            setError("Choose a PDF, JPEG, PNG, or WebP file up to 10 MB.");
+            return;
+        }
         setUploadingRecordId(recordId);
 
         try {
@@ -127,8 +126,6 @@ function MedicalRecordsPage() {
                 "Medical document uploaded successfully."
             );
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to upload the medical document."
@@ -165,8 +162,6 @@ function MedicalRecordsPage() {
                 URL.revokeObjectURL(blobUrl);
             }, 1000);
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to download the medical document."
@@ -203,8 +198,6 @@ function MedicalRecordsPage() {
                 "Medical document deleted successfully."
             );
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to delete the medical document."
@@ -214,7 +207,7 @@ function MedicalRecordsPage() {
 
     const handleDeleteRecord = async (recordId) => {
         const confirmed = window.confirm(
-            "Deleting a medical record may also affect its associated documents. Are you sure you want to continue?"
+            "Delete this medical record and remove it from shared access? Attached documents must be deleted first."
         );
 
         if (!confirmed) {
@@ -245,8 +238,6 @@ function MedicalRecordsPage() {
                 "Medical record deleted successfully."
             );
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to delete the medical record."
@@ -339,6 +330,7 @@ function MedicalRecordsPage() {
                         {records.map((record) => {
                             const recordDocuments =
                                 documents[record.id] || [];
+                            const documentsFailed = documents[record.id] === null;
 
                             const isUploading =
                                 uploadingRecordId === record.id;
@@ -481,6 +473,7 @@ function MedicalRecordsPage() {
 
                                                 <input
                                                     type="file"
+                                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
                                                     hidden
                                                     disabled={isUploading}
                                                     onChange={(event) =>
@@ -493,7 +486,13 @@ function MedicalRecordsPage() {
                                             </label>
                                         </div>
 
-                                        {recordDocuments.length === 0 ? (
+                                        {documentsFailed ? (
+                                            <p className="error-message" role="alert">
+                                                Documents could not be loaded.
+                                                <button type="button" className="link-button"
+                                                    onClick={() => void loadData()}>Retry</button>
+                                            </p>
+                                        ) : recordDocuments.length === 0 ? (
                                             <div
                                                 style={
                                                     styles.documentEmptyState

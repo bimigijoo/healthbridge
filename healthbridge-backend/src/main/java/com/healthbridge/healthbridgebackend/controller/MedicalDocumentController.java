@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,15 +18,35 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/medical-documents")
 public class MedicalDocumentController {
+
+    private static final long MAX_FILE_SIZE_BYTES = 10L * 1024 * 1024;
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            ".pdf",
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp"
+    );
 
     private final MedicalDocumentService medicalDocumentService;
     private final MedicalRecordService medicalRecordService;
@@ -62,6 +83,18 @@ public class MedicalDocumentController {
             return ResponseEntity.badRequest().build();
         }
 
+        if (file.getSize() > MAX_FILE_SIZE_BYTES) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        String contentType = file.getContentType();
+
+        if (contentType == null
+                || !ALLOWED_CONTENT_TYPES.contains(
+                contentType.toLowerCase(Locale.ROOT))) {
+            return ResponseEntity.badRequest().build();
+        }
+
         try {
             Path uploadPath = Paths.get(uploadDir)
                     .toAbsolutePath()
@@ -75,12 +108,34 @@ public class MedicalDocumentController {
                 return ResponseEntity.badRequest().build();
             }
 
-            String cleanFileName = Paths.get(originalFileName)
+            String cleanFileName = Paths.get(originalFileName.replace('\\', '/'))
                     .getFileName()
                     .toString();
 
+            if (cleanFileName.length() > 180
+                    || cleanFileName.chars().anyMatch(Character::isISOControl)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            String extension = "";
+            int dotIndex = cleanFileName.lastIndexOf('.');
+
+            if (dotIndex >= 0) {
+                extension = cleanFileName
+                        .substring(dotIndex)
+                        .toLowerCase(Locale.ROOT);
+            }
+
+            if (!ALLOWED_EXTENSIONS.contains(extension)) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            if (!matchesFileType(file, extension, contentType.toLowerCase(Locale.ROOT))) {
+                return ResponseEntity.badRequest().build();
+            }
+
             String storedFileName =
-                    UUID.randomUUID() + "_" + cleanFileName;
+                    UUID.randomUUID() + extension;
 
             Path filePath = uploadPath
                     .resolve(storedFileName)
@@ -90,7 +145,9 @@ public class MedicalDocumentController {
                 return ResponseEntity.badRequest().build();
             }
 
-            Files.copy(file.getInputStream(), filePath);
+            try (InputStream input = file.getInputStream()) {
+                Files.copy(input, filePath);
+            }
 
             MedicalDocument document = new MedicalDocument();
 
@@ -99,13 +156,20 @@ public class MedicalDocumentController {
             document.setFilePath(filePath.toString());
             document.setFileType(file.getContentType());
 
-            MedicalDocument savedDocument =
-                    medicalDocumentService.saveDocument(document);
+            MedicalDocument savedDocument;
+            try {
+                savedDocument = medicalDocumentService.saveDocument(document);
+            } catch (RuntimeException exception) {
+                Files.deleteIfExists(filePath);
+                throw exception;
+            }
 
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(toResponse(savedDocument));
 
+        } catch (InvalidPathException e) {
+            return ResponseEntity.badRequest().build();
         } catch (IOException e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -186,8 +250,9 @@ public class MedicalDocumentController {
                     .contentType(MediaType.parseMediaType(contentType))
                     .header(
                             HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" +
-                                    document.getFileName() + "\""
+                            ContentDisposition.attachment()
+                                    .filename(document.getFileName(), StandardCharsets.UTF_8)
+                                    .build().toString()
                     )
                     .body(resource);
 
@@ -250,5 +315,37 @@ public class MedicalDocumentController {
                 document.getFileType(),
                 document.getUploadedAt()
         );
+    }
+
+    private boolean matchesFileType(MultipartFile file, String extension, String contentType)
+            throws IOException {
+        byte[] header;
+        try (InputStream input = file.getInputStream()) {
+            header = input.readNBytes(12);
+        }
+        return switch (contentType) {
+            case "application/pdf" -> extension.equals(".pdf")
+                    && startsWith(header, new byte[]{37, 80, 68, 70, 45});
+            case "image/jpeg" -> (extension.equals(".jpg") || extension.equals(".jpeg"))
+                    && startsWith(header, new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff});
+            case "image/png" -> extension.equals(".png")
+                    && startsWith(header, new byte[]{(byte) 0x89, 80, 78, 71, 13, 10, 26, 10});
+            case "image/webp" -> extension.equals(".webp") && header.length >= 12
+                    && new String(header, 0, 4, StandardCharsets.US_ASCII).equals("RIFF")
+                    && new String(header, 8, 4, StandardCharsets.US_ASCII).equals("WEBP");
+            default -> false;
+        };
+    }
+
+    private boolean startsWith(byte[] header, byte[] signature) {
+        if (header.length < signature.length) {
+            return false;
+        }
+        for (int index = 0; index < signature.length; index++) {
+            if (header[index] != signature[index]) {
+                return false;
+            }
+        }
+        return true;
     }
 }

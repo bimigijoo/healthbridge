@@ -37,7 +37,10 @@ function RegisterPage() {
                 formData.password
             );
 
-            navigate("/dashboard");
+            navigate("/login", {
+                replace: true,
+                state: { message: "Account created. Sign in to continue." },
+            });
         } catch (err) {
             const message =
                 err.response?.data?.message ||
@@ -109,6 +112,7 @@ function RegisterPage() {
                             onChange={handleChange}
                             placeholder="Create a password"
                             minLength={6}
+                            maxLength={72}
                             required
                         />
                     </div>

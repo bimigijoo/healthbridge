@@ -8,4 +8,6 @@ import java.util.List;
 public interface MedicalDocumentRepository extends JpaRepository<MedicalDocument, Long> {
 
     List<MedicalDocument> findByMedicalRecordId(Long medicalRecordId);
+
+    boolean existsByMedicalRecordId(Long medicalRecordId);
 }

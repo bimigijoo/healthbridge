@@ -53,7 +53,7 @@ public class ProviderAccessController {
                         .orElse(null);
 
         if (session == null) {
-            return ResponseEntity.status(403).build();
+            return ResponseEntity.status(403).body(null);
         }
 
         HealthProfile healthProfile =

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 
 function LoginPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
 
     const [formData, setFormData] = useState({
@@ -81,6 +82,12 @@ function LoginPage() {
                         Digital Health Record Management
                     </p>
                 </div>
+
+                {location.state?.message && (
+                    <div className="success-message" role="status">
+                        {location.state.message}
+                    </div>
+                )}
 
                 <form
                     className="auth-form"
