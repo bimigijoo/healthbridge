@@ -35,7 +35,7 @@ function ProviderAccessPage() {
             setLoading(true);
 
             const response = await api.get(
-                `/provider-access/${accessToken.trim()}`
+                `/provider-access/${encodeURIComponent(accessToken.trim())}`
             );
 
             setAccessData(response.data);
@@ -48,8 +48,6 @@ function ProviderAccessPage() {
 
             setMessage("Authorized medical records loaded successfully.");
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to access the shared medical records."
@@ -83,7 +81,7 @@ function ProviderAccessPage() {
             setLoading(true);
 
             await api.post(
-                `/provider-access/${accessToken.trim()}/consultation`,
+                `/provider-access/${encodeURIComponent(accessToken.trim())}/consultation`,
                 consultation
             );
 
@@ -99,8 +97,6 @@ function ProviderAccessPage() {
                 notes: "",
             }));
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to add the consultation."
@@ -119,62 +115,64 @@ function ProviderAccessPage() {
     };
 
     return (
-        <div style={styles.page}>
-            <div style={styles.container}>
-                <div style={styles.header}>
+        <div className="ui-page">
+            <div className="ui-container">
+                <div className="ui-header">
                     <div>
-                        <h1 style={styles.title}>
+                        <h1 className="ui-title">
                             HealthBridge Provider Access
                         </h1>
 
-                        <p style={styles.subtitle}>
+                        <p className="ui-subtitle">
                             Temporary access to records shared by a worker.
                         </p>
                     </div>
                 </div>
 
                 {message && (
-                    <div style={styles.success}>
+                    <div className="success-message" role="status">
                         {message}
                     </div>
                 )}
 
                 {error && (
-                    <div style={styles.error}>
+                    <div className="error-message" role="alert">
                         {error}
                     </div>
                 )}
 
                 {!accessData && (
-                    <section style={styles.card}>
-                        <h2 style={styles.sectionTitle}>
+                    <section className="ui-section">
+                        <h2 className="ui-sectionTitle">
                             Enter Temporary Access Code
                         </h2>
 
-                        <p style={styles.description}>
+                        <p className="ui-description">
                             Enter the temporary access code provided by the
                             worker. No permanent HealthBridge provider account
                             is required.
                         </p>
 
                         <form onSubmit={accessRecords}>
-                            <label style={styles.label}>
+                            <label className="ui-label">
                                 Temporary Access Code
 
                                 <input
                                     type="text"
+                                    autoComplete="off"
+                                    required
                                     value={accessToken}
                                     onChange={(event) =>
                                         setAccessToken(event.target.value)
                                     }
                                     placeholder="Enter access code"
-                                    style={styles.input}
+                                    className="ui-input"
                                 />
                             </label>
 
                             <button
                                 type="submit"
-                                style={styles.primaryButton}
+                                className="primary-button"
                                 disabled={loading}
                             >
                                 {loading
@@ -187,12 +185,12 @@ function ProviderAccessPage() {
 
                 {accessData && (
                     <>
-                        <section style={styles.card}>
-                            <h2 style={styles.sectionTitle}>
+                        <section className="ui-section">
+                            <h2 className="ui-sectionTitle">
                                 Authorized Access
                             </h2>
 
-                            <div style={styles.infoGrid}>
+                            <div className="ui-infoGrid">
                                 <div>
                                     <strong>Provider</strong>
                                     <p>
@@ -216,8 +214,8 @@ function ProviderAccessPage() {
                             </div>
                         </section>
 
-                        <section style={styles.card}>
-                            <h2 style={styles.sectionTitle}>
+                        <section className="ui-section">
+                            <h2 className="ui-sectionTitle">
                                 Shared Medical Records
                             </h2>
 
@@ -227,48 +225,48 @@ function ProviderAccessPage() {
                                     sharing session.
                                 </p>
                             ) : (
-                                <div style={styles.recordList}>
+                                <div className="ui-recordList">
                                     {accessData.records?.map((record) => (
                                         <div
                                             key={record.id}
-                                            style={styles.recordItem}
+                                            className="ui-recordItem"
                                         >
-                                            <h3 style={styles.recordTitle}>
+                                            <h3 className="ui-recordTitle">
                                                 {record.recordType ||
                                                     "Medical Record"}
                                             </h3>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Date:</strong>{" "}
                                                 {record.recordDate || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Provider:</strong>{" "}
                                                 {record.providerName || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Facility:</strong>{" "}
                                                 {record.providerFacility || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Reason:</strong>{" "}
                                                 {record.reason || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Diagnosis:</strong>{" "}
                                                 {record.diagnosis || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Medication:</strong>{" "}
                                                 {record.medication || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 <strong>Notes:</strong>{" "}
                                                 {record.notes || "—"}
                                             </div>
@@ -278,19 +276,19 @@ function ProviderAccessPage() {
                             )}
                         </section>
 
-                        <section style={styles.card}>
-                            <h2 style={styles.sectionTitle}>
+                        <section className="ui-section">
+                            <h2 className="ui-sectionTitle">
                                 Add Consultation
                             </h2>
 
-                            <p style={styles.description}>
+                            <p className="ui-description">
                                 Add the consultation from this temporary
                                 provider session. The consultation will become
                                 part of the worker's medical history.
                             </p>
 
                             <form onSubmit={addConsultation}>
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Consultation Date
 
                                     <input
@@ -298,12 +296,12 @@ function ProviderAccessPage() {
                                         name="recordDate"
                                         value={consultation.recordDate}
                                         onChange={handleConsultationChange}
-                                        style={styles.input}
+                                        className="ui-input"
                                         required
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Provider Name
 
                                     <input
@@ -311,12 +309,12 @@ function ProviderAccessPage() {
                                         name="providerName"
                                         value={consultation.providerName}
                                         onChange={handleConsultationChange}
-                                        style={styles.input}
+                                        className="ui-input"
                                         required
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Facility
 
                                     <input
@@ -324,61 +322,61 @@ function ProviderAccessPage() {
                                         name="providerFacility"
                                         value={consultation.providerFacility}
                                         onChange={handleConsultationChange}
-                                        style={styles.input}
+                                        className="ui-input"
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Reason for Consultation
 
                                     <textarea
                                         name="reason"
                                         value={consultation.reason}
                                         onChange={handleConsultationChange}
-                                        style={styles.textarea}
+                                        className="ui-textarea"
                                         placeholder="Reason for the visit"
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Diagnosis
 
                                     <textarea
                                         name="diagnosis"
                                         value={consultation.diagnosis}
                                         onChange={handleConsultationChange}
-                                        style={styles.textarea}
+                                        className="ui-textarea"
                                         placeholder="Provider's diagnosis"
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Medication
 
                                     <textarea
                                         name="medication"
                                         value={consultation.medication}
                                         onChange={handleConsultationChange}
-                                        style={styles.textarea}
+                                        className="ui-textarea"
                                         placeholder="Medication prescribed, if any"
                                     />
                                 </label>
 
-                                <label style={styles.label}>
+                                <label className="ui-label">
                                     Notes
 
                                     <textarea
                                         name="notes"
                                         value={consultation.notes}
                                         onChange={handleConsultationChange}
-                                        style={styles.textarea}
+                                        className="ui-textarea"
                                         placeholder="Additional consultation notes"
                                     />
                                 </label>
 
                                 <button
                                     type="submit"
-                                    style={styles.primaryButton}
+                                    className="primary-button"
                                     disabled={loading}
                                 >
                                     {loading
@@ -394,133 +392,6 @@ function ProviderAccessPage() {
     );
 }
 
-const styles = {
-    page: {
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        padding: "30px 20px",
-    },
 
-    container: {
-        maxWidth: "1000px",
-        margin: "0 auto",
-    },
-
-    header: {
-        marginBottom: "25px",
-    },
-
-    title: {
-        margin: 0,
-        fontSize: "32px",
-    },
-
-    subtitle: {
-        marginTop: "8px",
-        color: "#555",
-    },
-
-    card: {
-        background: "#fff",
-        borderRadius: "12px",
-        padding: "24px",
-        marginBottom: "20px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-    },
-
-    sectionTitle: {
-        marginTop: 0,
-        marginBottom: "15px",
-    },
-
-    description: {
-        color: "#555",
-        lineHeight: "1.6",
-        marginBottom: "20px",
-    },
-
-    label: {
-        display: "block",
-        marginBottom: "16px",
-        fontWeight: "600",
-    },
-
-    input: {
-        display: "block",
-        width: "100%",
-        boxSizing: "border-box",
-        marginTop: "7px",
-        padding: "11px",
-        border: "1px solid #ccc",
-        borderRadius: "7px",
-        fontSize: "15px",
-    },
-
-    textarea: {
-        display: "block",
-        width: "100%",
-        minHeight: "90px",
-        boxSizing: "border-box",
-        marginTop: "7px",
-        padding: "11px",
-        border: "1px solid #ccc",
-        borderRadius: "7px",
-        fontSize: "15px",
-        resize: "vertical",
-        fontFamily: "inherit",
-    },
-
-    primaryButton: {
-        padding: "12px 20px",
-        border: "none",
-        borderRadius: "7px",
-        cursor: "pointer",
-        fontWeight: "600",
-    },
-
-    success: {
-        background: "#e8f7ee",
-        padding: "12px",
-        borderRadius: "7px",
-        marginBottom: "20px",
-    },
-
-    error: {
-        background: "#fdecec",
-        padding: "12px",
-        borderRadius: "7px",
-        marginBottom: "20px",
-    },
-
-    infoGrid: {
-        display: "grid",
-        gridTemplateColumns:
-            "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: "20px",
-    },
-
-    recordList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "15px",
-    },
-
-    recordItem: {
-        padding: "18px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-    },
-
-    recordTitle: {
-        marginTop: 0,
-        marginBottom: "12px",
-    },
-
-    recordDetails: {
-        marginTop: "7px",
-        color: "#555",
-        lineHeight: "1.5",
-    },
-};
 
 export default ProviderAccessPage;

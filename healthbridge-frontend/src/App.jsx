@@ -10,15 +10,20 @@ import ProviderAccessPage from "./pages/ProviderAccessPage";
 import HealthTimelinePage from "./pages/HealthTimelinePage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AppShell from "./components/AppShell";
 
-function ProtectedRoute({ children }) {
-    const { isAuthenticated } = useAuth();
+function ProtectedRoute({ children, role = "WORKER" }) {
+    const { isAuthenticated, user } = useAuth();
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
-    return children;
+    if (user?.role !== role) {
+        return <Navigate to={user?.role === "ADMIN" ? "/admin" : "/dashboard"} replace />;
+    }
+
+    return <AppShell>{children}</AppShell>;
 }
 
 function App() {
@@ -95,7 +100,7 @@ function App() {
 
             <Route
                 path="/provider-access"
-                element={<ProviderAccessPage />}
+                element={<AppShell publicAccess><ProviderAccessPage /></AppShell>}
             />
 
             <Route
@@ -104,18 +109,9 @@ function App() {
             />
 
             <Route
-                path="/dashboard"
-                element={
-                    <ProtectedRoute>
-                        <DashboardPage />
-                    </ProtectedRoute>
-                }
-            />
-
-            <Route
                 path="/admin"
                 element={
-                    <ProtectedRoute>
+                    <ProtectedRoute role="ADMIN">
                         <AdminDashboardPage />
                     </ProtectedRoute>
                 }

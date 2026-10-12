@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import { useAuth } from "../context/useAuth";
+import { useNavigate } from "react-router-dom";
+import PageStatus from "../components/PageStatus";
 
 function HealthPassportPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const [healthProfile, setHealthProfile] = useState(null);
     const [qrCodeUrl, setQrCodeUrl] = useState("");
@@ -34,10 +37,8 @@ function HealthPassportPage() {
                 const qrUrl = URL.createObjectURL(qrResponse.data);
                 setQrCodeUrl(qrUrl);
             } catch (error) {
-                console.error(error);
-
                 setError(
-                    error.response?.data?.message ||
+                    error.response?.status === 404 ? "" : error.response?.data?.message ||
                     "Unable to load your digital health passport."
                 );
             } finally {
@@ -57,112 +58,92 @@ function HealthPassportPage() {
     }, [qrCodeUrl]);
 
     if (loading) {
-        return (
-            <div style={styles.page}>
-                <div style={styles.container}>
-                    <p>Loading your digital health passport...</p>
-                </div>
-            </div>
-        );
+        return <PageStatus loading title="Loading health passport" />;
     }
 
     if (error) {
-        return (
-            <div style={styles.page}>
-                <div style={styles.container}>
-                    <div style={styles.error}>
-                        {error}
-                    </div>
-                </div>
-            </div>
-        );
+        return <PageStatus error title="Passport could not be loaded" description={error}
+            onRetry={() => window.location.reload()} />;
     }
 
     if (!healthProfile) {
-        return (
-            <div style={styles.page}>
-                <div style={styles.container}>
-                    <p>
-                        No health profile is available yet.
-                    </p>
-                </div>
-            </div>
-        );
+        return <PageStatus title="Create your health profile" createProfile
+            description="Your health passport will be available after you create a profile." />;
     }
 
     return (
-        <div style={styles.page}>
-            <div style={styles.container}>
-                <div style={styles.header}>
+        <div className="ui-page">
+            <div className="ui-container">
+                <div className="ui-header">
                     <div>
-                        <h1 style={styles.title}>
+                        <h1 className="ui-title">
                             Digital Health Passport
                         </h1>
 
-                        <p style={styles.subtitle}>
+                        <p className="ui-subtitle">
                             Your portable HealthBridge identity and emergency
                             health information.
                         </p>
                     </div>
 
                     <button
-                        style={styles.backButton}
-                        onClick={() => window.history.back()}
+                        className="secondary-button"
+                        onClick={() => navigate("/dashboard")}
                     >
                         Back
                     </button>
                 </div>
 
-                <section style={styles.card}>
-                    <div style={styles.profileSection}>
-                        <div style={styles.profileInfo}>
-                            <h2 style={styles.sectionTitle}>
+                <section className="ui-section">
+                    <div className="ui-profileSection">
+                        <div className="ui-profileInfo">
+                            <h2 className="ui-sectionTitle">
                                 Health Profile
                             </h2>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Health ID</strong>
                                 <span>
                   {healthProfile.healthId || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Name</strong>
                                 <span>
                   {user?.name || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Date of Birth</strong>
                                 <span>
                   {healthProfile.dateOfBirth || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Gender</strong>
                                 <span>
                   {healthProfile.gender || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Blood Group</strong>
                                 <span>
                   {healthProfile.bloodGroup || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Preferred Language</strong>
                                 <span>
                   {healthProfile.preferredLanguage || "—"}
                 </span>
                             </div>
 
-                            <div style={styles.infoRow}>
+                            <div className="ui-infoRow">
                                 <strong>Emergency Contact</strong>
                                 <span>
                   {healthProfile.emergencyContact || "—"}
@@ -170,8 +151,8 @@ function HealthPassportPage() {
                             </div>
                         </div>
 
-                        <div style={styles.qrSection}>
-                            <h2 style={styles.sectionTitle}>
+                        <div className="ui-qrSection">
+                            <h2 className="ui-sectionTitle">
                                 Health ID QR
                             </h2>
 
@@ -179,7 +160,7 @@ function HealthPassportPage() {
                                 <img
                                     src={qrCodeUrl}
                                     alt="HealthBridge Health ID QR code"
-                                    style={styles.qrImage}
+                                    className="ui-qrImage"
                                 />
                             ) : (
                                 <p>
@@ -187,7 +168,7 @@ function HealthPassportPage() {
                                 </p>
                             )}
 
-                            <p style={styles.qrDescription}>
+                            <p className="ui-qrDescription">
                                 This QR code represents your HealthBridge Health
                                 ID. It does not contain your medical records.
                             </p>
@@ -195,20 +176,20 @@ function HealthPassportPage() {
                     </div>
                 </section>
 
-                <section style={styles.card}>
-                    <h2 style={styles.sectionTitle}>
+                <section className="ui-section">
+                    <h2 className="ui-sectionTitle">
                         Emergency Information
                     </h2>
 
-                    <div style={styles.infoGrid}>
-                        <div style={styles.infoBox}>
+                    <div className="ui-infoGrid">
+                        <div className="ui-infoBox">
                             <strong>Blood Group</strong>
                             <span>
                 {healthProfile.bloodGroup || "Not provided"}
               </span>
                         </div>
 
-                        <div style={styles.infoBox}>
+                        <div className="ui-infoBox">
                             <strong>Emergency Contact</strong>
                             <span>
                 {healthProfile.emergencyContact ||
@@ -216,7 +197,7 @@ function HealthPassportPage() {
               </span>
                         </div>
 
-                        <div style={styles.infoBox}>
+                        <div className="ui-infoBox">
                             <strong>Preferred Language</strong>
                             <span>
                 {healthProfile.preferredLanguage ||
@@ -230,119 +211,6 @@ function HealthPassportPage() {
     );
 }
 
-const styles = {
-    page: {
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        padding: "30px 20px",
-    },
 
-    container: {
-        maxWidth: "1000px",
-        margin: "0 auto",
-    },
-
-    header: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "20px",
-        marginBottom: "25px",
-    },
-
-    title: {
-        margin: 0,
-        fontSize: "32px",
-    },
-
-    subtitle: {
-        marginTop: "8px",
-        color: "#555",
-    },
-
-    card: {
-        background: "#fff",
-        borderRadius: "12px",
-        padding: "24px",
-        marginBottom: "20px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-    },
-
-    sectionTitle: {
-        marginTop: 0,
-        marginBottom: "20px",
-    },
-
-    profileSection: {
-        display: "flex",
-        gap: "50px",
-        alignItems: "flex-start",
-    },
-
-    profileInfo: {
-        flex: 1,
-    },
-
-    qrSection: {
-        width: "280px",
-        textAlign: "center",
-    },
-
-    qrImage: {
-        width: "240px",
-        height: "240px",
-        objectFit: "contain",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        padding: "10px",
-        background: "#fff",
-    },
-
-    qrDescription: {
-        marginTop: "15px",
-        color: "#666",
-        fontSize: "14px",
-        lineHeight: 1.5,
-    },
-
-    infoRow: {
-        display: "flex",
-        justifyContent: "space-between",
-        gap: "20px",
-        padding: "12px 0",
-        borderBottom: "1px solid #eee",
-    },
-
-    infoGrid: {
-        display: "grid",
-        gridTemplateColumns:
-            "repeat(auto-fit, minmax(220px, 1fr))",
-        gap: "15px",
-    },
-
-    infoBox: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "8px",
-        padding: "16px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-    },
-
-    backButton: {
-        padding: "10px 18px",
-        border: "1px solid #ccc",
-        borderRadius: "7px",
-        background: "#fff",
-        cursor: "pointer",
-    },
-
-    error: {
-        background: "#fdecec",
-        padding: "12px",
-        borderRadius: "7px",
-        color: "#8a1c1c",
-    },
-};
 
 export default HealthPassportPage;

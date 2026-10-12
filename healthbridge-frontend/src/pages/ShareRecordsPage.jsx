@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../services/api";
 import { useAuth } from "../context/useAuth";
+import { useNavigate } from "react-router-dom";
+import PageStatus from "../components/PageStatus";
 
 function ShareRecordsPage() {
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const [healthProfile, setHealthProfile] = useState(null);
     const [records, setRecords] = useState([]);
@@ -50,10 +53,8 @@ function ShareRecordsPage() {
 
             setSessions(sessionsResponse.data);
         } catch (err) {
-            console.error(err);
-
             setError(
-                err.response?.data?.message ||
+                err.response?.status === 404 ? "" : err.response?.data?.message ||
                 "Unable to load your medical records and sharing sessions."
             );
         } finally {
@@ -121,8 +122,6 @@ function ShareRecordsPage() {
 
             await loadData();
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to create the sharing session."
@@ -139,12 +138,12 @@ function ShareRecordsPage() {
 
             await api.delete(`/sharing-sessions/${sessionId}`);
 
+            setCreatedSession(current => current?.id === sessionId ? null : current);
+
             setMessage("Sharing session revoked successfully.");
 
             await loadData();
         } catch (err) {
-            console.error(err);
-
             setError(
                 err.response?.data?.message ||
                 "Unable to revoke the sharing session."
@@ -173,61 +172,61 @@ function ShareRecordsPage() {
     };
 
     if (loading) {
-        return (
-            <div style={styles.page}>
-                <div style={styles.container}>
-                    <p>Loading your sharing information...</p>
-                </div>
-            </div>
-        );
+        return <PageStatus loading title="Loading sharing information" />;
+    }
+
+    if (!healthProfile) {
+        return <PageStatus title={error ? "Sharing could not be loaded" : "Create your health profile"}
+            description={error || "A health profile is needed to share records."}
+            error={!!error} onRetry={error ? () => void loadData() : undefined} createProfile={!error} />;
     }
 
     return (
-        <div style={styles.page}>
-            <div style={styles.container}>
-                <div style={styles.header}>
+        <div className="ui-page">
+            <div className="ui-container">
+                <div className="ui-header">
                     <div>
-                        <h1 style={styles.title}>Share My Records</h1>
+                        <h1 className="ui-title">Share My Records</h1>
 
-                        <p style={styles.subtitle}>
+                        <p className="ui-subtitle">
                             Choose which medical records you want to share with a
                             healthcare provider.
                         </p>
                     </div>
 
                     <button
-                        style={styles.backButton}
-                        onClick={() => window.history.back()}
+                        className="secondary-button"
+                        onClick={() => navigate("/dashboard")}
                     >
                         Back
                     </button>
                 </div>
 
                 {message && (
-                    <div style={styles.success}>
+                    <div className="success-message" role="status">
                         {message}
                     </div>
                 )}
 
                 {error && (
-                    <div style={styles.error}>
+                    <div className="error-message" role="alert">
                         {error}
                     </div>
                 )}
 
-                <section style={styles.card}>
-                    <h2 style={styles.sectionTitle}>
+                <section className="ui-section">
+                    <h2 className="ui-sectionTitle">
                         Select Medical Records
                     </h2>
 
                     {records.length === 0 ? (
                         <p>No medical records are currently available.</p>
                     ) : (
-                        <div style={styles.recordList}>
+                        <div className="ui-recordList">
                             {records.map((record) => (
                                 <label
                                     key={record.id}
-                                    style={styles.recordItem}
+                                    className="ui-recordItem"
                                 >
                                     <input
                                         type="checkbox"
@@ -240,15 +239,15 @@ function ShareRecordsPage() {
                                             {record.recordType || "Medical Record"}
                                         </strong>
 
-                                        <div style={styles.recordDetails}>
+                                        <div className="ui-recordDetails">
                                             Date: {record.recordDate || "—"}
                                         </div>
 
-                                        <div style={styles.recordDetails}>
+                                        <div className="ui-recordDetails">
                                             Provider: {record.providerName || "—"}
                                         </div>
 
-                                        <div style={styles.recordDetails}>
+                                        <div className="ui-recordDetails">
                                             Facility: {record.providerFacility || "—"}
                                         </div>
                                     </div>
@@ -258,17 +257,17 @@ function ShareRecordsPage() {
                     )}
                 </section>
 
-                <section style={styles.card}>
-                    <h2 style={styles.sectionTitle}>
+                <section className="ui-section">
+                    <h2 className="ui-sectionTitle">
                         Provider Information
                     </h2>
 
                     <form onSubmit={createSharingSession}>
-                        <label style={styles.label}>
+                        <label className="ui-label">
                             Provider Name
 
                             <input
-                                style={styles.input}
+                                className="ui-input"
                                 type="text"
                                 value={providerName}
                                 onChange={(event) =>
@@ -278,11 +277,11 @@ function ShareRecordsPage() {
                             />
                         </label>
 
-                        <label style={styles.label}>
+                        <label className="ui-label">
                             Facility
 
                             <input
-                                style={styles.input}
+                                className="ui-input"
                                 type="text"
                                 value={providerFacility}
                                 onChange={(event) =>
@@ -292,11 +291,11 @@ function ShareRecordsPage() {
                             />
                         </label>
 
-                        <label style={styles.label}>
+                        <label className="ui-label">
                             Registration / Professional ID
 
                             <input
-                                style={styles.input}
+                                className="ui-input"
                                 type="text"
                                 value={providerRegistration}
                                 onChange={(event) =>
@@ -306,11 +305,11 @@ function ShareRecordsPage() {
                             />
                         </label>
 
-                        <label style={styles.label}>
+                        <label className="ui-label">
                             Access Duration
 
                             <select
-                                style={styles.input}
+                                className="ui-input"
                                 value={durationHours}
                                 onChange={(event) =>
                                     setDurationHours(Number(event.target.value))
@@ -332,7 +331,7 @@ function ShareRecordsPage() {
 
                         <button
                             type="submit"
-                            style={styles.primaryButton}
+                            className="primary-button"
                             disabled={
                                 creating ||
                                 selectedRecordIds.length === 0
@@ -346,27 +345,27 @@ function ShareRecordsPage() {
                 </section>
 
                 {createdSession && (
-                    <section style={styles.card}>
-                        <h2 style={styles.sectionTitle}>
+                    <section className="ui-section">
+                        <h2 className="ui-sectionTitle">
                             Temporary Access Created
                         </h2>
 
-                        <p style={styles.warning}>
+                        <p className="ui-warning">
                             Keep this access code private. Anyone who has the
                             temporary access code may be able to access the
                             records during the active sharing period.
                         </p>
 
-                        <div style={styles.accessBox}>
+                        <div className="ui-accessBox">
                             <div>
                                 <strong>Access Code</strong>
                             </div>
 
-                            <div style={styles.token}>
+                            <div className="ui-token">
                                 {createdSession.accessToken}
                             </div>
 
-                            <div style={styles.recordDetails}>
+                            <div className="ui-recordDetails">
                                 Expires:{" "}
                                 {formatDate(createdSession.expiresAt)}
                             </div>
@@ -374,15 +373,15 @@ function ShareRecordsPage() {
                     </section>
                 )}
 
-                <section style={styles.card}>
-                    <h2 style={styles.sectionTitle}>
+                <section className="ui-section">
+                    <h2 className="ui-sectionTitle">
                         Sharing History
                     </h2>
 
                     {sessions.length === 0 ? (
                         <p>No sharing sessions yet.</p>
                     ) : (
-                        <div style={styles.sessionList}>
+                        <div className="ui-sessionList">
                             {[...sessions]
                                 .sort(
                                     (a, b) =>
@@ -392,44 +391,44 @@ function ShareRecordsPage() {
                                 .map((session) => (
                                     <div
                                         key={session.id}
-                                        style={styles.sessionItem}
+                                        className="ui-sessionItem"
                                     >
-                                        <div style={styles.sessionContent}>
+                                        <div className="ui-sessionContent">
                                             <strong>
                                                 {session.providerName ||
                                                     "Healthcare Provider"}
                                             </strong>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 Session ID: {session.id}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 Facility:{" "}
                                                 {session.providerFacility || "—"}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 Created:{" "}
                                                 {formatDate(session.createdAt)}
                                             </div>
 
-                                            <div style={styles.recordDetails}>
+                                            <div className="ui-recordDetails">
                                                 Expires:{" "}
                                                 {formatDate(session.expiresAt)}
                                             </div>
 
                                             {isActive(session) && (
-                                                <div style={styles.accessBox}>
+                                                <div className="ui-accessBox">
                                                     <strong>Access Code</strong>
 
-                                                    <div style={styles.token}>
+                                                    <div className="ui-token">
                                                         {session.accessToken}
                                                     </div>
                                                 </div>
                                             )}
 
-                                            <div style={styles.status}>
+                                            <div className="ui-status">
                                                 Status:{" "}
                                                 {session.revoked
                                                     ? "Revoked"
@@ -442,7 +441,7 @@ function ShareRecordsPage() {
                                         {!session.revoked &&
                                             isActive(session) && (
                                                 <button
-                                                    style={styles.revokeButton}
+                                                    className="danger-button"
                                                     onClick={() =>
                                                         revokeSession(session.id)
                                                     }
@@ -460,171 +459,6 @@ function ShareRecordsPage() {
     );
 }
 
-const styles = {
-    page: {
-        minHeight: "100vh",
-        background: "#f5f7fb",
-        padding: "30px 20px",
-    },
 
-    container: {
-        maxWidth: "1000px",
-        margin: "0 auto",
-    },
-
-    header: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "20px",
-        marginBottom: "25px",
-    },
-
-    title: {
-        margin: 0,
-        fontSize: "32px",
-    },
-
-    subtitle: {
-        marginTop: "8px",
-        color: "#555",
-    },
-
-    card: {
-        background: "#fff",
-        borderRadius: "12px",
-        padding: "24px",
-        marginBottom: "20px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
-    },
-
-    sectionTitle: {
-        marginTop: 0,
-        marginBottom: "20px",
-    },
-
-    recordList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-    },
-
-    recordItem: {
-        display: "flex",
-        gap: "14px",
-        padding: "16px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        cursor: "pointer",
-    },
-
-    recordDetails: {
-        marginTop: "5px",
-        color: "#666",
-        fontSize: "14px",
-    },
-
-    label: {
-        display: "block",
-        marginBottom: "16px",
-        fontWeight: "600",
-    },
-
-    input: {
-        display: "block",
-        width: "100%",
-        boxSizing: "border-box",
-        marginTop: "7px",
-        padding: "11px",
-        border: "1px solid #ccc",
-        borderRadius: "7px",
-        fontSize: "15px",
-    },
-
-    primaryButton: {
-        padding: "12px 20px",
-        border: "none",
-        borderRadius: "7px",
-        cursor: "pointer",
-        fontWeight: "600",
-    },
-
-    backButton: {
-        padding: "10px 18px",
-        border: "1px solid #ccc",
-        borderRadius: "7px",
-        background: "#fff",
-        cursor: "pointer",
-    },
-
-    success: {
-        background: "#e8f7ee",
-        padding: "12px",
-        borderRadius: "7px",
-        marginBottom: "20px",
-    },
-
-    error: {
-        background: "#fdecec",
-        padding: "12px",
-        borderRadius: "7px",
-        marginBottom: "20px",
-    },
-
-    warning: {
-        background: "#fff7df",
-        padding: "12px",
-        borderRadius: "7px",
-    },
-
-    accessBox: {
-        marginTop: "12px",
-        padding: "14px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-        background: "#fafafa",
-    },
-
-    token: {
-        marginTop: "10px",
-        padding: "12px",
-        background: "#f4f4f4",
-        borderRadius: "6px",
-        fontFamily: "monospace",
-        wordBreak: "break-all",
-    },
-
-    sessionList: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "12px",
-    },
-
-    sessionItem: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        gap: "20px",
-        padding: "16px",
-        border: "1px solid #ddd",
-        borderRadius: "8px",
-    },
-
-    sessionContent: {
-        flex: 1,
-    },
-
-    status: {
-        marginTop: "10px",
-        fontWeight: "600",
-    },
-
-    revokeButton: {
-        padding: "10px 15px",
-        border: "none",
-        borderRadius: "7px",
-        cursor: "pointer",
-    },
-};
 
 export default ShareRecordsPage;

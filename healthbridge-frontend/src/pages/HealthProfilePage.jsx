@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import api from "../services/api";
+import PageStatus from "../components/PageStatus";
 
 function HealthProfilePage() {
     const { user } = useAuth();
@@ -10,6 +11,7 @@ function HealthProfilePage() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         healthId: "",
@@ -55,6 +57,7 @@ function HealthProfilePage() {
         event.preventDefault();
 
         setError("");
+        setSubmitting(true);
 
         try {
             const response = await api.post(
@@ -71,15 +74,13 @@ function HealthProfilePage() {
                 "Unable to create the health profile. " +
                 "Please check the information and try again."
             );
+        } finally {
+            setSubmitting(false);
         }
     };
 
     if (loading) {
-        return (
-            <div className="page-container">
-                <p>Loading health profile...</p>
-            </div>
-        );
+        return <PageStatus loading title="Loading health profile" />;
     }
 
     return (
@@ -103,7 +104,7 @@ function HealthProfilePage() {
             </header>
 
             {error && (
-                <div className="error-message">
+                <div className="error-message" role="alert">
                     {error}
                 </div>
             )}
@@ -224,12 +225,16 @@ function HealthProfilePage() {
                                 Gender
                             </label>
 
-                            <input
+                            <select
                                 id="gender"
                                 name="gender"
                                 value={formData.gender}
                                 onChange={handleChange}
-                            />
+                            >
+                                <option value="">Not provided</option>
+                                <option>Female</option><option>Male</option><option>Other</option>
+                                <option>Prefer not to say</option>
+                            </select>
                         </div>
 
                         <div className="form-group">
@@ -237,13 +242,15 @@ function HealthProfilePage() {
                                 Blood Group
                             </label>
 
-                            <input
+                            <select
                                 id="bloodGroup"
                                 name="bloodGroup"
                                 value={formData.bloodGroup}
                                 onChange={handleChange}
-                                placeholder="Example: O+"
-                            />
+                            >
+                                <option value="">Not provided</option>
+                                {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(group => <option key={group}>{group}</option>)}
+                            </select>
                         </div>
 
                         <div className="form-group">
@@ -254,6 +261,7 @@ function HealthProfilePage() {
                             <input
                                 id="emergencyContact"
                                 name="emergencyContact"
+                                type="tel"
                                 value={formData.emergencyContact}
                                 onChange={handleChange}
                             />
@@ -276,8 +284,9 @@ function HealthProfilePage() {
                         <button
                             type="submit"
                             className="primary-button"
+                            disabled={submitting}
                         >
-                            Create Health Profile
+                            {submitting ? "Creating profile..." : "Create Health Profile"}
                         </button>
 
                     </form>

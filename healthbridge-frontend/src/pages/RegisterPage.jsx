@@ -75,6 +75,7 @@ function RegisterPage() {
                         <input
                             id="name"
                             name="name"
+                            autoComplete="name"
                             type="text"
                             value={formData.name}
                             onChange={handleChange}
@@ -91,6 +92,7 @@ function RegisterPage() {
                         <input
                             id="email"
                             name="email"
+                            autoComplete="email"
                             type="email"
                             value={formData.email}
                             onChange={handleChange}
@@ -107,6 +109,7 @@ function RegisterPage() {
                         <input
                             id="password"
                             name="password"
+                            autoComplete="new-password"
                             type="password"
                             value={formData.password}
                             onChange={handleChange}
@@ -118,7 +121,7 @@ function RegisterPage() {
                     </div>
 
                     {error && (
-                        <div className="error-message">
+                        <div className="error-message" role="alert">
                             {error}
                         </div>
                     )}

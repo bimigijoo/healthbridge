@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import api from "../services/api";
+import { Activity, ClipboardList, ContactRound, Share2 } from "lucide-react";
+import PageStatus from "../components/PageStatus";
 
 function DashboardPage() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
 
     const [healthProfile, setHealthProfile] = useState(null);
@@ -45,30 +47,18 @@ function DashboardPage() {
         };
     }, [user]);
 
-    const handleLogout = () => {
-        logout();
-        navigate("/login");
-    };
-
     return (
         <div className="dashboard-page">
 
             <header className="dashboard-header">
                 <div>
-                    <h1>HealthBridge</h1>
-                    <p>Digital Health Record Management</p>
+                    <h1>Overview</h1>
+                    <p>Your health, connected.</p>
                 </div>
 
-                <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={handleLogout}
-                >
-                    Logout
-                </button>
             </header>
 
-            <main className="dashboard-content">
+            <div className="dashboard-content">
 
                 <section className="welcome-section">
                     <h2>
@@ -83,19 +73,18 @@ function DashboardPage() {
                 </section>
 
                 {error && (
-                    <div className="error-message">
+                    <div className="error-message" role="alert">
                         {error}
                     </div>
                 )}
 
                 {loading ? (
-                    <div className="loading-message">
-                        Loading your health profile...
-                    </div>
+                    <PageStatus loading title="Loading your health profile" />
                 ) : (
                     <section className="dashboard-grid">
 
                         <div className="dashboard-card">
+                            <ContactRound size={25} aria-hidden="true" />
                             <h3>Digital Health Passport</h3>
 
                             {healthProfile ? (
@@ -146,6 +135,7 @@ function DashboardPage() {
                         </div>
 
                         <div className="dashboard-card">
+                            <ClipboardList size={25} aria-hidden="true" />
                             <h3>Medical Records</h3>
 
                             <p>
@@ -168,6 +158,7 @@ function DashboardPage() {
                         </div>
 
                         <div className="dashboard-card">
+                            <Share2 size={25} aria-hidden="true" />
                             <h3>Share My Records</h3>
 
                             <p>
@@ -189,6 +180,7 @@ function DashboardPage() {
                         </div>
 
                         <div className="dashboard-card">
+                            <Activity size={25} aria-hidden="true" />
                             <h3>Health Timeline</h3>
 
                             <p>
@@ -231,7 +223,7 @@ function DashboardPage() {
                     </p>
                 </section>
 
-            </main>
+            </div>
         </div>
     );
 }

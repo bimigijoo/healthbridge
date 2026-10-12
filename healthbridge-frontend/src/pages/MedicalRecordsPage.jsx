@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import api from "../services/api";
+import PageStatus from "../components/PageStatus";
+import { Download, Trash2, Upload } from "lucide-react";
 
 function MedicalRecordsPage() {
     const { user } = useAuth();
@@ -63,7 +65,7 @@ function MedicalRecordsPage() {
             setDocuments(documentMap);
         } catch (err) {
             setError(
-                err.response?.data?.message ||
+                err.response?.status === 404 ? "" : err.response?.data?.message ||
                 "Unable to load your medical records."
             );
         } finally {
@@ -264,11 +266,13 @@ function MedicalRecordsPage() {
     };
 
     if (loading) {
-        return (
-            <div className="page-container">
-                <p>Loading medical records...</p>
-            </div>
-        );
+        return <PageStatus loading title="Loading medical records" />;
+    }
+
+    if (!healthProfile) {
+        return <PageStatus title={error ? "Records could not be loaded" : "Create your health profile"}
+            description={error || "A health profile is needed before records can be added."}
+            error={!!error} onRetry={error ? () => void loadData() : undefined} createProfile={!error} />;
     }
 
     return (
@@ -368,7 +372,7 @@ function MedicalRecordsPage() {
                                                 )
                                             }
                                         >
-                                            Delete Record
+                                            <Trash2 size={16} aria-hidden="true" /> Delete Record
                                         </button>
                                     </div>
 
@@ -443,9 +447,7 @@ function MedicalRecordsPage() {
                                                 </p>
 
                                                 <span
-                                                    style={
-                                                        styles.documentCount
-                                                    }
+                                                    className="ui-documentCount"
                                                 >
                                                     {recordDocuments.length}{" "}
                                                     {recordDocuments.length === 1
@@ -455,16 +457,12 @@ function MedicalRecordsPage() {
                                             </div>
 
                                             <label
-                                                style={{
-                                                    ...styles.uploadButton,
-                                                    opacity: isUploading
-                                                        ? 0.65
-                                                        : 1,
-                                                    cursor: isUploading
-                                                        ? "not-allowed"
-                                                        : "pointer",
-                                                }}
+                                                className="upload-button" style={{
+  opacity: isUploading ? 0.65 : 1,
+  cursor: isUploading ? "not-allowed" : "pointer"
+}}
                                             >
+                                                <Upload size={16} aria-hidden="true" />
                                                 {isUploading
                                                     ? "Uploading..."
                                                     : recordDocuments.length > 0
@@ -474,7 +472,6 @@ function MedicalRecordsPage() {
                                                 <input
                                                     type="file"
                                                     accept=".pdf,.jpg,.jpeg,.png,.webp"
-                                                    hidden
                                                     disabled={isUploading}
                                                     onChange={(event) =>
                                                         handleDocumentUpload(
@@ -494,22 +491,16 @@ function MedicalRecordsPage() {
                                             </p>
                                         ) : recordDocuments.length === 0 ? (
                                             <div
-                                                style={
-                                                    styles.documentEmptyState
-                                                }
+                                                className="ui-documentEmptyState"
                                             >
                                                 <p
-                                                    style={
-                                                        styles.documentEmptyTitle
-                                                    }
+                                                    className="ui-documentEmptyTitle"
                                                 >
                                                     No documents attached yet
                                                 </p>
 
                                                 <p
-                                                    style={
-                                                        styles.documentEmptyDescription
-                                                    }
+                                                    className="ui-documentEmptyDescription"
                                                 >
                                                     Upload a medical report,
                                                     prescription, or other
@@ -526,9 +517,7 @@ function MedicalRecordsPage() {
                                                             key={document.id}
                                                         >
                                                             <div
-                                                                style={
-                                                                    styles.documentInfo
-                                                                }
+                                                                className="ui-documentInfo"
                                                             >
                                                                 <strong>
                                                                     {document.fileName}
@@ -550,7 +539,7 @@ function MedicalRecordsPage() {
                                                                         )
                                                                     }
                                                                 >
-                                                                    Download
+                                                                    <Download size={16} aria-hidden="true" /> Download
                                                                 </button>
 
                                                                 <button
@@ -562,7 +551,7 @@ function MedicalRecordsPage() {
                                                                         )
                                                                     }
                                                                 >
-                                                                    Delete
+                                                                    <Trash2 size={16} aria-hidden="true" /> Delete
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -606,56 +595,6 @@ function MedicalRecordsPage() {
     );
 }
 
-const styles = {
-    uploadButton: {
-        display: "inline-block",
-        padding: "10px 16px",
-        borderRadius: "7px",
-        background: "#2563eb",
-        color: "#ffffff",
-        cursor: "pointer",
-        fontWeight: 600,
-        border: "none",
-        textAlign: "center",
-        whiteSpace: "nowrap",
-        fontSize: "14px",
-    },
 
-    documentCount: {
-        display: "inline-block",
-        marginTop: "8px",
-        color: "#475467",
-        fontSize: "13px",
-        fontWeight: 600,
-    },
-
-    documentEmptyState: {
-        padding: "20px",
-        marginTop: "12px",
-        backgroundColor: "#f8fafc",
-        border: "1px dashed #cbd5e1",
-        borderRadius: "10px",
-        textAlign: "center",
-    },
-
-    documentEmptyTitle: {
-        margin: 0,
-        color: "#344054",
-        fontSize: "14px",
-        fontWeight: 600,
-    },
-
-    documentEmptyDescription: {
-        margin: "8px 0 0",
-        color: "#667085",
-        fontSize: "13px",
-        lineHeight: 1.5,
-    },
-
-    documentInfo: {
-        minWidth: 0,
-        overflowWrap: "anywhere",
-    },
-};
 
 export default MedicalRecordsPage;
