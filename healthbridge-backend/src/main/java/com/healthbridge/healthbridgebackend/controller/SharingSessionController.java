@@ -6,6 +6,7 @@ import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
 import com.healthbridge.healthbridgebackend.entity.SharedRecord;
 import com.healthbridge.healthbridgebackend.entity.SharingSession;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
 import com.healthbridge.healthbridgebackend.service.SharedRecordService;
@@ -28,17 +29,20 @@ public class SharingSessionController {
     private final SharedRecordService sharedRecordService;
     private final HealthProfileService healthProfileService;
     private final MedicalRecordService medicalRecordService;
+    private final CurrentUserService currentUserService;
 
     public SharingSessionController(
             SharingSessionService sharingSessionService,
             SharedRecordService sharedRecordService,
             HealthProfileService healthProfileService,
-            MedicalRecordService medicalRecordService) {
+            MedicalRecordService medicalRecordService,
+            CurrentUserService currentUserService) {
 
         this.sharingSessionService = sharingSessionService;
         this.sharedRecordService = sharedRecordService;
         this.healthProfileService = healthProfileService;
         this.medicalRecordService = medicalRecordService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -52,6 +56,8 @@ public class SharingSessionController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         if (!isValidDuration(request.getDurationHours())) {
             return ResponseEntity.badRequest().build();
@@ -127,6 +133,8 @@ public class SharingSessionController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<SharingSessionResponse> responses =
                 sharingSessionService
                         .findByHealthProfileId(healthProfileId)
@@ -148,6 +156,8 @@ public class SharingSessionController {
         if (session == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(session.getHealthProfile());
 
         session.setRevoked(true);
         sharingSessionService.saveSession(session);

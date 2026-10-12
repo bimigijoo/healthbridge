@@ -3,6 +3,7 @@ package com.healthbridge.healthbridgebackend.controller;
 import com.healthbridge.healthbridgebackend.dto.MedicalDocumentResponse;
 import com.healthbridge.healthbridgebackend.entity.MedicalDocument;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.MedicalDocumentService;
 import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,15 +29,18 @@ public class MedicalDocumentController {
 
     private final MedicalDocumentService medicalDocumentService;
     private final MedicalRecordService medicalRecordService;
+    private final CurrentUserService currentUserService;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
     public MedicalDocumentController(
             MedicalDocumentService medicalDocumentService,
-            MedicalRecordService medicalRecordService) {
+            MedicalRecordService medicalRecordService,
+            CurrentUserService currentUserService) {
         this.medicalDocumentService = medicalDocumentService;
         this.medicalRecordService = medicalRecordService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping("/upload/{medicalRecordId}")
@@ -51,6 +55,8 @@ public class MedicalDocumentController {
         if (medicalRecord == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(medicalRecord.getHealthProfile());
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().build();
@@ -119,6 +125,8 @@ public class MedicalDocumentController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(medicalRecord.getHealthProfile());
+
         List<MedicalDocumentResponse> responses =
                 medicalDocumentService
                         .findByMedicalRecordId(medicalRecordId)
@@ -140,6 +148,10 @@ public class MedicalDocumentController {
         if (document == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(
+                document.getMedicalRecord().getHealthProfile()
+        );
 
         try {
             Path filePath = Paths.get(document.getFilePath())
@@ -197,6 +209,10 @@ public class MedicalDocumentController {
         if (document == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(
+                document.getMedicalRecord().getHealthProfile()
+        );
 
         try {
             Path filePath = Paths.get(document.getFilePath())

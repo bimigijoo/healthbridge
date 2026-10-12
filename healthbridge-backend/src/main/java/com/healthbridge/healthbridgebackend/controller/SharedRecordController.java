@@ -3,6 +3,7 @@ package com.healthbridge.healthbridgebackend.controller;
 import com.healthbridge.healthbridgebackend.dto.SharedRecordResponse;
 import com.healthbridge.healthbridgebackend.entity.SharedRecord;
 import com.healthbridge.healthbridgebackend.entity.SharingSession;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.SharedRecordService;
 import com.healthbridge.healthbridgebackend.service.SharingSessionService;
 import org.springframework.http.ResponseEntity;
@@ -16,13 +17,16 @@ public class SharedRecordController {
 
     private final SharedRecordService sharedRecordService;
     private final SharingSessionService sharingSessionService;
+    private final CurrentUserService currentUserService;
 
     public SharedRecordController(
             SharedRecordService sharedRecordService,
-            SharingSessionService sharingSessionService) {
+            SharingSessionService sharingSessionService,
+            CurrentUserService currentUserService) {
 
         this.sharedRecordService = sharedRecordService;
         this.sharingSessionService = sharingSessionService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/session/{sessionId}")
@@ -36,6 +40,8 @@ public class SharedRecordController {
         if (session == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(session.getHealthProfile());
 
         List<SharedRecordResponse> responses =
                 sharedRecordService

@@ -5,10 +5,12 @@ import com.healthbridge.healthbridgebackend.dto.HealthProfileResponse;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.User;
 import com.healthbridge.healthbridgebackend.qr.QrCodeService;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import com.healthbridge.healthbridgebackend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,20 +22,25 @@ public class HealthProfileController {
     private final HealthProfileService healthProfileService;
     private final UserService userService;
     private final QrCodeService qrCodeService;
+    private final CurrentUserService currentUserService;
 
     public HealthProfileController(
             HealthProfileService healthProfileService,
             UserService userService,
-            QrCodeService qrCodeService) {
+            QrCodeService qrCodeService,
+            CurrentUserService currentUserService) {
 
         this.healthProfileService = healthProfileService;
         this.userService = userService;
         this.qrCodeService = qrCodeService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<HealthProfileResponse> getProfileByUserId(
             @PathVariable Long userId) {
+
+        currentUserService.assertSameUser(userId);
 
         HealthProfile profile =
                 healthProfileService
@@ -51,10 +58,14 @@ public class HealthProfileController {
     public ResponseEntity<HealthProfileResponse> createProfile(
             @Valid @RequestBody HealthProfileRequest request) {
 
-        if (healthProfileService
-                .existsByHealthId(request.getHealthId())) {
+        currentUserService.assertSameUser(request.getUserId());
 
-            return ResponseEntity.badRequest().build();
+        if (healthProfileService.findByUserId(request.getUserId()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        }
+
+        if (healthProfileService.existsByHealthId(request.getHealthId())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
         User user =
@@ -96,6 +107,8 @@ public class HealthProfileController {
         if (profile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(profile);
 
         String qrContent =
                 "HEALTHBRIDGE:" + profile.getHealthId();

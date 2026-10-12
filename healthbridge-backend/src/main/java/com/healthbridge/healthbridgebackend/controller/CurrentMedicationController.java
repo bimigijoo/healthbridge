@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.dto.CurrentMedicationRequest;
 import com.healthbridge.healthbridgebackend.dto.CurrentMedicationResponse;
 import com.healthbridge.healthbridgebackend.entity.CurrentMedication;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.CurrentMedicationService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import jakarta.validation.Valid;
@@ -19,13 +20,16 @@ public class CurrentMedicationController {
 
     private final CurrentMedicationService currentMedicationService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public CurrentMedicationController(
             CurrentMedicationService currentMedicationService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
 
         this.currentMedicationService = currentMedicationService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -39,6 +43,8 @@ public class CurrentMedicationController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         CurrentMedication medication = new CurrentMedication();
 
@@ -68,6 +74,8 @@ public class CurrentMedicationController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<CurrentMedicationResponse> responses =
                 currentMedicationService
                         .findByHealthProfileId(healthProfileId)
@@ -89,6 +97,8 @@ public class CurrentMedicationController {
         if (medication == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(medication.getHealthProfile());
 
         currentMedicationService.deleteMedication(id);
 

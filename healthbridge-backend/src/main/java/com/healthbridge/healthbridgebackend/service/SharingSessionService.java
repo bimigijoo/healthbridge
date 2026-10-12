@@ -52,8 +52,8 @@ public class SharingSessionService {
         }
 
         if (sharingSession.getExpiresAt() == null
-                || sharingSession.getExpiresAt()
-                .isBefore(LocalDateTime.now())) {
+                || !sharingSession.getExpiresAt()
+                .isAfter(LocalDateTime.now())) {
 
             return Optional.empty();
         }
@@ -71,9 +71,16 @@ public class SharingSessionService {
     public List<SharingSession> findActiveSessions(
             Long healthProfileId) {
 
+        LocalDateTime now = LocalDateTime.now();
+
         return sharingSessionRepository
                 .findByHealthProfileIdAndRevokedFalse(
-                        healthProfileId);
+                        healthProfileId)
+                .stream()
+                .filter(session ->
+                        session.getExpiresAt() != null
+                                && session.getExpiresAt().isAfter(now))
+                .toList();
     }
 
     public void deleteSession(Long id) {

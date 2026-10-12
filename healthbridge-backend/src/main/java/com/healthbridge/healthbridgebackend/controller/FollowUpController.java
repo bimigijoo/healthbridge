@@ -3,6 +3,7 @@ package com.healthbridge.healthbridgebackend.controller;
 import com.healthbridge.healthbridgebackend.dto.FollowUpResponse;
 import com.healthbridge.healthbridgebackend.entity.FollowUp;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.FollowUpService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import jakarta.validation.Valid;
@@ -19,13 +20,16 @@ public class FollowUpController {
 
     private final FollowUpService followUpService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public FollowUpController(
             FollowUpService followUpService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
 
         this.followUpService = followUpService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -40,6 +44,8 @@ public class FollowUpController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         FollowUp followUp = new FollowUp();
 
@@ -69,6 +75,8 @@ public class FollowUpController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<FollowUpResponse> responses =
                 followUpService
                         .findByHealthProfileIdOrderByDueDateAsc(
@@ -93,6 +101,8 @@ public class FollowUpController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<FollowUpResponse> responses =
                 followUpService
                         .findPendingFollowUps(healthProfileId)
@@ -114,6 +124,8 @@ public class FollowUpController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(followUp.getHealthProfile());
+
         followUp.setStatus(FollowUp.Status.COMPLETED);
         followUp.setCompletedAt(LocalDateTime.now());
 
@@ -133,6 +145,8 @@ public class FollowUpController {
         if (followUp == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(followUp.getHealthProfile());
 
         followUpService.deleteFollowUp(id);
 

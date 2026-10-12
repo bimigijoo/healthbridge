@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.dto.ExistingConditionRequest;
 import com.healthbridge.healthbridgebackend.dto.ExistingConditionResponse;
 import com.healthbridge.healthbridgebackend.entity.ExistingCondition;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.ExistingConditionService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import jakarta.validation.Valid;
@@ -19,13 +20,16 @@ public class ExistingConditionController {
 
     private final ExistingConditionService existingConditionService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public ExistingConditionController(
             ExistingConditionService existingConditionService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
 
         this.existingConditionService = existingConditionService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -39,6 +43,8 @@ public class ExistingConditionController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         ExistingCondition condition = new ExistingCondition();
 
@@ -67,6 +73,8 @@ public class ExistingConditionController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<ExistingConditionResponse> responses =
                 existingConditionService
                         .findByHealthProfileId(healthProfileId)
@@ -88,6 +96,8 @@ public class ExistingConditionController {
         if (condition == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(condition.getHealthProfile());
 
         existingConditionService.deleteCondition(id);
 

@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.dto.AllergyRequest;
 import com.healthbridge.healthbridgebackend.dto.AllergyResponse;
 import com.healthbridge.healthbridgebackend.entity.Allergy;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.AllergyService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import jakarta.validation.Valid;
@@ -19,13 +20,16 @@ public class AllergyController {
 
     private final AllergyService allergyService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public AllergyController(
             AllergyService allergyService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
 
         this.allergyService = allergyService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -39,6 +43,8 @@ public class AllergyController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         Allergy allergy = new Allergy();
 
@@ -65,6 +71,8 @@ public class AllergyController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(healthProfile);
+
         List<AllergyResponse> responses = allergyService
                 .findByHealthProfileId(healthProfileId)
                 .stream()
@@ -85,6 +93,8 @@ public class AllergyController {
         if (allergy == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(allergy.getHealthProfile());
 
         allergyService.deleteAllergy(id);
 

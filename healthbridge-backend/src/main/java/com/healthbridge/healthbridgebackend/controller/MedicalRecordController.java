@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.dto.MedicalRecordRequest;
 import com.healthbridge.healthbridgebackend.dto.MedicalRecordResponse;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
 import jakarta.validation.Valid;
@@ -19,12 +20,15 @@ public class MedicalRecordController {
 
     private final MedicalRecordService medicalRecordService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public MedicalRecordController(
             MedicalRecordService medicalRecordService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
         this.medicalRecordService = medicalRecordService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @PostMapping
@@ -38,6 +42,8 @@ public class MedicalRecordController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         MedicalRecord record = new MedicalRecord();
 
@@ -53,11 +59,9 @@ public class MedicalRecordController {
 
         MedicalRecord savedRecord = medicalRecordService.saveRecord(record);
 
-        MedicalRecordResponse response = toResponse(savedRecord);
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(response);
+                .body(toResponse(savedRecord));
     }
 
     @GetMapping("/profile/{healthProfileId}")
@@ -71,6 +75,8 @@ public class MedicalRecordController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         List<MedicalRecordResponse> responses =
                 medicalRecordService
@@ -94,6 +100,8 @@ public class MedicalRecordController {
             return ResponseEntity.notFound().build();
         }
 
+        currentUserService.assertProfileOwner(record.getHealthProfile());
+
         return ResponseEntity.ok(toResponse(record));
     }
 
@@ -108,6 +116,8 @@ public class MedicalRecordController {
         if (record == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(record.getHealthProfile());
 
         medicalRecordService.deleteRecord(id);
 

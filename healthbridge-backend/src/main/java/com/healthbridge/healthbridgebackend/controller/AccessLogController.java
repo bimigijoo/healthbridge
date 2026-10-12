@@ -3,6 +3,7 @@ package com.healthbridge.healthbridgebackend.controller;
 import com.healthbridge.healthbridgebackend.dto.AccessLogResponse;
 import com.healthbridge.healthbridgebackend.entity.AccessLog;
 import com.healthbridge.healthbridgebackend.entity.SharingSession;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.AccessLogService;
 import com.healthbridge.healthbridgebackend.service.SharingSessionService;
 import org.springframework.http.ResponseEntity;
@@ -16,13 +17,16 @@ public class AccessLogController {
 
     private final AccessLogService accessLogService;
     private final SharingSessionService sharingSessionService;
+    private final CurrentUserService currentUserService;
 
     public AccessLogController(
             AccessLogService accessLogService,
-            SharingSessionService sharingSessionService) {
+            SharingSessionService sharingSessionService,
+            CurrentUserService currentUserService) {
 
         this.accessLogService = accessLogService;
         this.sharingSessionService = sharingSessionService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/session/{sessionId}")
@@ -35,6 +39,8 @@ public class AccessLogController {
         if (session == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(session.getHealthProfile());
 
         List<AccessLogResponse> responses =
                 accessLogService

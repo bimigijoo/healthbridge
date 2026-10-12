@@ -4,6 +4,7 @@ import com.healthbridge.healthbridgebackend.dto.HealthTimelineResponse;
 import com.healthbridge.healthbridgebackend.entity.FollowUp;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
+import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.FollowUpService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
@@ -22,15 +23,18 @@ public class HealthTimelineController {
     private final MedicalRecordService medicalRecordService;
     private final FollowUpService followUpService;
     private final HealthProfileService healthProfileService;
+    private final CurrentUserService currentUserService;
 
     public HealthTimelineController(
             MedicalRecordService medicalRecordService,
             FollowUpService followUpService,
-            HealthProfileService healthProfileService) {
+            HealthProfileService healthProfileService,
+            CurrentUserService currentUserService) {
 
         this.medicalRecordService = medicalRecordService;
         this.followUpService = followUpService;
         this.healthProfileService = healthProfileService;
+        this.currentUserService = currentUserService;
     }
 
     @GetMapping("/profile/{healthProfileId}")
@@ -45,6 +49,8 @@ public class HealthTimelineController {
         if (healthProfile == null) {
             return ResponseEntity.notFound().build();
         }
+
+        currentUserService.assertProfileOwner(healthProfile);
 
         List<HealthTimelineResponse> timeline =
                 new ArrayList<>();
