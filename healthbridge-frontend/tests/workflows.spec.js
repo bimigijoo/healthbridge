@@ -15,6 +15,7 @@ async function authenticate(page, user = worker) {
 async function mockApi(page, { missingProfile = false, fail = false } = {}) {
     let documents = [{ id: 30, medicalRecordId: 20, fileName: "synthetic-report.pdf", fileType: "application/pdf" }];
     let sessions = [];
+    let accounts = [{ ...worker, active: true }, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN", active: true }];
     await page.route("**/api/**", async route => {
         const request = route.request();
         const path = new URL(request.url()).pathname.replace("/api", "");
@@ -52,10 +53,14 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
         if (path.startsWith("/provider-access/")) {
             if (sessions.some(session => session.revoked)) return json({ message: "Access expired or revoked." }, 403);
             if (method === "POST") return json(record, 201);
-            return json({ providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", records: [record] });
+            return json({ providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", medicalRecords: [record] });
         }
-        if (path === "/admin/users") return json([{ ...worker, active: true }, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN", active: true }]);
-        if (path.startsWith("/admin/users/") && method === "PATCH") return json({ message: "Account status updated." });
+        if (path === "/admin/users") return json(accounts);
+        if (path.startsWith("/admin/users/") && method === "PATCH") {
+            const id = Number(path.split("/")[3]);
+            accounts = accounts.map(account => account.id === id ? { ...account, active: request.postDataJSON().active } : account);
+            return json({ message: "Account status updated." });
+        }
         throw new Error(`Unmocked API request: ${method} ${path}`);
     });
 }
@@ -122,6 +127,7 @@ test("documents and consent sharing remain usable", async ({ page }) => {
     await page.getByLabel("Temporary Access Code", { exact: true }).fill("DEMO-ACCESS");
     await page.getByRole("button", { name: "Access Shared Records" }).click();
     await expect(page.getByRole("heading", { name: "Shared Medical Records" })).toBeVisible();
+    await expect(page.locator(".ui-recordList")).toContainText("Synthetic demonstration record");
     await page.getByRole("button", { name: "Add Consultation", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Consultation added successfully");
     await checkLayout(page);
@@ -159,5 +165,14 @@ test("admin tables and status actions are responsive", async ({ page }, testInfo
     await page.getByRole("button", { name: "Deactivate" }).click();
     await expect(page.locator(".success-message")).toContainText("Account status updated");
     await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.locator(".status-badge.inactive")).toHaveCount(1);
     await page.screenshot({ path: testInfo.outputPath("admin.png"), fullPage: true });
+});
+
+test("expired API sessions return the worker to login", async ({ page }) => {
+    await authenticate(page);
+    await page.route("**/api/**", route => route.fulfill({ status: 401, json: { message: "Session ended." } }));
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/login$/);
+    expect(await page.evaluate(() => localStorage.getItem("healthbridge_user"))).toBeNull();
 });

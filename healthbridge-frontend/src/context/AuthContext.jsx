@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AuthContext } from "./AuthContextValue";
 import api from "../services/api";
 
@@ -21,6 +21,12 @@ function getStoredUser() {
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(getStoredUser);
+
+    useEffect(() => {
+        const endSession = () => setUser(null);
+        window.addEventListener("healthbridge:session-ended", endSession);
+        return () => window.removeEventListener("healthbridge:session-ended", endSession);
+    }, []);
 
     const login = async (email, password) => {
         const response = await api.post("/auth/login", {

@@ -1,16 +1,23 @@
-# React + Vite
+# HealthBridge Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The existing React/Vite frontend for HealthBridge's worker workspace, public provider access, and admin account management.
 
-Currently, two official plugins are available:
+```powershell
+npm ci
+npm run dev -- --host 127.0.0.1 --port 5174
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Verification:
 
-## React Compiler
+```powershell
+npm run lint
+npm run build
+npm run test:ui
+npm audit
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Browser tests use synthetic intercepted API responses and Chrome by default. Set `PLAYWRIGHT_CHANNEL` to another installed Playwright-supported browser channel when needed. Screenshots and reports are ignored by Git.
 
-## Expanding the ESLint configuration
+`VITE_API_BASE_URL` optionally overrides the default `http://localhost:8080/api`. Do not place secrets in Vite environment variables; they are included in browser code.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+See the [project README](../README.md) for backend setup and [demo guide](../DEMO.md) for the academic walkthrough.

@@ -48,6 +48,11 @@ public class SecurityConfig {
                         )
                 )
 
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, exception) ->
+                                response.setStatus(401))
+                )
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**")
                         .permitAll()
@@ -79,7 +84,9 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "http://localhost:5174"
+                        "http://localhost:5174",
+                        "http://127.0.0.1:5173",
+                        "http://127.0.0.1:5174"
                 )
         );
 

@@ -219,14 +219,14 @@ function ProviderAccessPage() {
                                 Shared Medical Records
                             </h2>
 
-                            {accessData.records?.length === 0 ? (
+                            {accessData.medicalRecords?.length === 0 ? (
                                 <p>
                                     No medical records were included in this
                                     sharing session.
                                 </p>
                             ) : (
                                 <div className="ui-recordList">
-                                    {accessData.records?.map((record) => (
+                                    {accessData.medicalRecords?.map((record) => (
                                         <div
                                             key={record.id}
                                             className="ui-recordItem"
