@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import api from "../services/api";
 
 function MedicalRecordsPage() {
@@ -42,6 +42,7 @@ function MedicalRecordsPage() {
 
     const loadData = useCallback(async () => {
         if (!user?.id) {
+            setLoading(false);
             return;
         }
 
@@ -150,7 +151,6 @@ function MedicalRecordsPage() {
             );
 
             const blobUrl = URL.createObjectURL(response.data);
-
             const link = window.document.createElement("a");
 
             link.href = blobUrl;
@@ -161,7 +161,9 @@ function MedicalRecordsPage() {
             link.click();
             link.remove();
 
-            URL.revokeObjectURL(blobUrl);
+            window.setTimeout(() => {
+                URL.revokeObjectURL(blobUrl);
+            }, 1000);
         } catch (err) {
             console.error(err);
 
@@ -257,7 +259,17 @@ function MedicalRecordsPage() {
             return "—";
         }
 
-        return new Date(value).toLocaleDateString();
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+            return "—";
+        }
+
+        return date.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
     };
 
     if (loading) {
@@ -285,18 +297,18 @@ function MedicalRecordsPage() {
                     className="secondary-button"
                     onClick={() => navigate("/dashboard")}
                 >
-                    Back to Dashboard
+                    ← Back to Dashboard
                 </button>
             </header>
 
             {error && (
-                <div className="error-message">
+                <div className="error-message" role="alert">
                     {error}
                 </div>
             )}
 
             {success && (
-                <div className="success-message">
+                <div className="success-message" role="status">
                     {success}
                 </div>
             )}
@@ -306,9 +318,9 @@ function MedicalRecordsPage() {
                     <h2>My Medical Records</h2>
 
                     <p>
-                        Medical records are added through authorized
-                        healthcare interactions. You can review
-                        them here and manage supporting documents.
+                        Your medical history is organized below.
+                        Open a record to review its details and
+                        manage related documents.
                     </p>
                 </div>
 
@@ -327,6 +339,9 @@ function MedicalRecordsPage() {
                         {records.map((record) => {
                             const recordDocuments =
                                 documents[record.id] || [];
+
+                            const isUploading =
+                                uploadingRecordId === record.id;
 
                             return (
                                 <article
@@ -361,7 +376,7 @@ function MedicalRecordsPage() {
                                                 )
                                             }
                                         >
-                                            Delete
+                                            Delete Record
                                         </button>
                                     </div>
 
@@ -434,25 +449,40 @@ function MedicalRecordsPage() {
                                                     other files related
                                                     to this record.
                                                 </p>
+
+                                                <span
+                                                    style={
+                                                        styles.documentCount
+                                                    }
+                                                >
+                                                    {recordDocuments.length}{" "}
+                                                    {recordDocuments.length === 1
+                                                        ? "document attached"
+                                                        : "documents attached"}
+                                                </span>
                                             </div>
 
                                             <label
-                                                style={
-                                                    styles.uploadButton
-                                                }
+                                                style={{
+                                                    ...styles.uploadButton,
+                                                    opacity: isUploading
+                                                        ? 0.65
+                                                        : 1,
+                                                    cursor: isUploading
+                                                        ? "not-allowed"
+                                                        : "pointer",
+                                                }}
                                             >
-                                                {uploadingRecordId ===
-                                                record.id
+                                                {isUploading
                                                     ? "Uploading..."
-                                                    : "Upload Document"}
+                                                    : recordDocuments.length > 0
+                                                        ? "+ Add Another Document"
+                                                        : "+ Upload Document"}
 
                                                 <input
                                                     type="file"
                                                     hidden
-                                                    disabled={
-                                                        uploadingRecordId ===
-                                                        record.id
-                                                    }
+                                                    disabled={isUploading}
                                                     onChange={(event) =>
                                                         handleDocumentUpload(
                                                             event,
@@ -463,27 +493,46 @@ function MedicalRecordsPage() {
                                             </label>
                                         </div>
 
-                                        {recordDocuments.length ===
-                                        0 ? (
-                                            <p className="document-empty">
-                                                No supporting documents
-                                                attached.
-                                            </p>
+                                        {recordDocuments.length === 0 ? (
+                                            <div
+                                                style={
+                                                    styles.documentEmptyState
+                                                }
+                                            >
+                                                <p
+                                                    style={
+                                                        styles.documentEmptyTitle
+                                                    }
+                                                >
+                                                    No documents attached yet
+                                                </p>
+
+                                                <p
+                                                    style={
+                                                        styles.documentEmptyDescription
+                                                    }
+                                                >
+                                                    Upload a medical report,
+                                                    prescription, or other
+                                                    supporting file using
+                                                    the button above.
+                                                </p>
+                                            </div>
                                         ) : (
                                             <div className="document-list">
                                                 {recordDocuments.map(
                                                     (document) => (
                                                         <div
                                                             className="document-item"
-                                                            key={
-                                                                document.id
-                                                            }
+                                                            key={document.id}
                                                         >
-                                                            <div>
+                                                            <div
+                                                                style={
+                                                                    styles.documentInfo
+                                                                }
+                                                            >
                                                                 <strong>
-                                                                    {
-                                                                        document.fileName
-                                                                    }
+                                                                    {document.fileName}
                                                                 </strong>
 
                                                                 <p>
@@ -531,13 +580,12 @@ function MedicalRecordsPage() {
             </section>
 
             <section className="profile-card">
-                <h2>Record Management</h2>
+                <h2>Record Sharing</h2>
 
                 <p>
-                    Your HealthBridge medical history remains
-                    available through your Health ID and can be
-                    selectively shared with healthcare providers
-                    through temporary access.
+                    Share selected medical records with healthcare
+                    providers through temporary access. You control
+                    which records are shared.
                 </p>
 
                 {healthProfile?.healthId && (
@@ -565,11 +613,49 @@ const styles = {
         padding: "10px 16px",
         borderRadius: "7px",
         background: "#2563eb",
-        color: "#fff",
+        color: "#ffffff",
         cursor: "pointer",
-        fontWeight: "600",
+        fontWeight: 600,
         border: "none",
         textAlign: "center",
+        whiteSpace: "nowrap",
+        fontSize: "14px",
+    },
+
+    documentCount: {
+        display: "inline-block",
+        marginTop: "8px",
+        color: "#475467",
+        fontSize: "13px",
+        fontWeight: 600,
+    },
+
+    documentEmptyState: {
+        padding: "20px",
+        marginTop: "12px",
+        backgroundColor: "#f8fafc",
+        border: "1px dashed #cbd5e1",
+        borderRadius: "10px",
+        textAlign: "center",
+    },
+
+    documentEmptyTitle: {
+        margin: 0,
+        color: "#344054",
+        fontSize: "14px",
+        fontWeight: 600,
+    },
+
+    documentEmptyDescription: {
+        margin: "8px 0 0",
+        color: "#667085",
+        fontSize: "13px",
+        lineHeight: 1.5,
+    },
+
+    documentInfo: {
+        minWidth: 0,
+        overflowWrap: "anywhere",
     },
 };
 

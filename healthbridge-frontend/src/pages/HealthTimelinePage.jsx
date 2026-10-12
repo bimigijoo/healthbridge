@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 import api from "../services/api";
 
 function HealthTimelinePage() {
+    const navigate = useNavigate();
     const { user } = useAuth();
 
     const [profile, setProfile] = useState(null);
@@ -19,6 +21,7 @@ function HealthTimelinePage() {
 
     const loadData = useCallback(async () => {
         if (!user?.id) {
+            setLoading(false);
             return;
         }
 
@@ -75,7 +78,9 @@ function HealthTimelinePage() {
         }
 
         if (!description.trim() || !dueDate) {
-            setError("Please enter a follow-up description and due date.");
+            setError(
+                "Please enter a follow-up description and due date."
+            );
             return;
         }
 
@@ -221,6 +226,15 @@ function HealthTimelinePage() {
     return (
         <div style={styles.page}>
             <div style={styles.container}>
+
+                <button
+                    type="button"
+                    onClick={() => navigate("/dashboard")}
+                    style={styles.backButton}
+                >
+                    ← Back to Dashboard
+                </button>
+
                 <div style={styles.header}>
                     <div>
                         <h1 style={styles.title}>
@@ -247,17 +261,18 @@ function HealthTimelinePage() {
                 </div>
 
                 {error && (
-                    <div style={styles.errorBox}>
+                    <div style={styles.errorBox} role="alert">
                         {error}
                     </div>
                 )}
 
                 {success && (
-                    <div style={styles.successBox}>
+                    <div style={styles.successBox} role="status">
                         {success}
                     </div>
                 )}
 
+                {/* Health Timeline */}
                 <section style={styles.section}>
                     <div style={styles.sectionHeader}>
                         <div>
@@ -325,9 +340,7 @@ function HealthTimelinePage() {
                                                     styles.timelineDate
                                                 }
                                             >
-                                                {formatDate(
-                                                    item.eventDate
-                                                )}
+                                                {formatDate(item.eventDate)}
                                             </span>
                                         </div>
 
@@ -360,6 +373,7 @@ function HealthTimelinePage() {
                     )}
                 </section>
 
+                {/* Add Follow-up */}
                 <section style={styles.section}>
                     <div style={styles.sectionHeader}>
                         <div>
@@ -379,11 +393,15 @@ function HealthTimelinePage() {
                         style={styles.form}
                     >
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>
+                            <label
+                                htmlFor="followUpDescription"
+                                style={styles.label}
+                            >
                                 Follow-up description
                             </label>
 
                             <input
+                                id="followUpDescription"
                                 type="text"
                                 value={description}
                                 onChange={(event) =>
@@ -391,36 +409,44 @@ function HealthTimelinePage() {
                                 }
                                 placeholder="Example: Blood sugar test"
                                 style={styles.input}
+                                required
                             />
                         </div>
 
                         <div style={styles.formGroup}>
-                            <label style={styles.label}>
+                            <label
+                                htmlFor="followUpDueDate"
+                                style={styles.label}
+                            >
                                 Due date
                             </label>
 
                             <input
+                                id="followUpDueDate"
                                 type="date"
                                 value={dueDate}
                                 onChange={(event) =>
                                     setDueDate(event.target.value)
                                 }
                                 style={styles.input}
+                                required
                             />
                         </div>
 
                         <button
                             type="submit"
-                            disabled={saving}
-                            style={styles.primaryButton}
+                            disabled={saving || !profile}
+                            style={{
+                                ...styles.primaryButton,
+                                opacity: saving || !profile ? 0.7 : 1,
+                            }}
                         >
-                            {saving
-                                ? "Saving..."
-                                : "Add Follow-up"}
+                            {saving ? "Saving..." : "Add Follow-up"}
                         </button>
                     </form>
                 </section>
 
+                {/* Pending Follow-ups */}
                 <section style={styles.section}>
                     <div style={styles.sectionHeader}>
                         <div>
@@ -462,9 +488,7 @@ function HealthTimelinePage() {
 
                                         <p style={styles.followUpDate}>
                                             Due:{" "}
-                                            {formatDate(
-                                                followUp.dueDate
-                                            )}
+                                            {formatDate(followUp.dueDate)}
                                         </p>
 
                                         <span
@@ -510,6 +534,7 @@ function HealthTimelinePage() {
                     )}
                 </section>
 
+                {/* Completed Follow-ups */}
                 <section style={styles.section}>
                     <div style={styles.sectionHeader}>
                         <div>
@@ -551,9 +576,7 @@ function HealthTimelinePage() {
 
                                         <p style={styles.followUpDate}>
                                             Due:{" "}
-                                            {formatDate(
-                                                followUp.dueDate
-                                            )}
+                                            {formatDate(followUp.dueDate)}
                                         </p>
 
                                         {followUp.completedAt && (
@@ -600,6 +623,7 @@ function HealthTimelinePage() {
                         </div>
                     )}
                 </section>
+
             </div>
         </div>
     );
@@ -617,12 +641,28 @@ const styles = {
         margin: "0 auto",
     },
 
+    backButton: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "6px",
+        marginBottom: "20px",
+        padding: "10px 16px",
+        backgroundColor: "#ffffff",
+        color: "#1d4ed8",
+        border: "1px solid #d0d5dd",
+        borderRadius: "8px",
+        fontSize: "14px",
+        fontWeight: 600,
+        cursor: "pointer",
+    },
+
     header: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "flex-start",
         gap: "20px",
         marginBottom: "28px",
+        flexWrap: "wrap",
     },
 
     title: {
@@ -752,12 +792,14 @@ const styles = {
         borderRadius: "12px",
         padding: "16px",
         backgroundColor: "#fcfcfd",
+        minWidth: 0,
     },
 
     timelineTopRow: {
         display: "flex",
         justifyContent: "space-between",
         gap: "16px",
+        flexWrap: "wrap",
     },
 
     timelineType: {
@@ -797,7 +839,7 @@ const styles = {
 
     form: {
         display: "grid",
-        gridTemplateColumns: "1fr 220px auto",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(160px, 220px) auto",
         gap: "16px",
         alignItems: "end",
     },
@@ -806,6 +848,7 @@ const styles = {
         display: "flex",
         flexDirection: "column",
         gap: "7px",
+        minWidth: 0,
     },
 
     label: {
@@ -850,10 +893,12 @@ const styles = {
         borderRadius: "12px",
         padding: "16px",
         backgroundColor: "#fcfcfd",
+        flexWrap: "wrap",
     },
 
     followUpContent: {
         minWidth: 0,
+        flex: 1,
     },
 
     followUpTitle: {
@@ -878,6 +923,7 @@ const styles = {
         display: "flex",
         gap: "8px",
         flexShrink: 0,
+        flexWrap: "wrap",
     },
 
     completeButton: {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 function ShareRecordsPage() {
     const { user } = useAuth();
@@ -62,7 +62,13 @@ function ShareRecordsPage() {
     }, [user]);
 
     useEffect(() => {
-        loadData();
+        const timer = window.setTimeout(() => {
+            void loadData();
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
     }, [loadData]);
 
     const toggleRecord = (recordId) => {

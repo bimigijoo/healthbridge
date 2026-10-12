@@ -1,7 +1,6 @@
-import { createContext, useContext, useState } from "react";
+import { useState } from "react";
+import { AuthContext } from "./AuthContextValue";
 import api from "../services/api";
-
-const AuthContext = createContext(null);
 
 function getStoredUser() {
     const storedToken = localStorage.getItem("healthbridge_token");
@@ -83,16 +82,4 @@ export function AuthProvider({ children }) {
             {children}
         </AuthContext.Provider>
     );
-}
-
-export function useAuth() {
-    const context = useContext(AuthContext);
-
-    if (!context) {
-        throw new Error(
-            "useAuth must be used inside an AuthProvider"
-        );
-    }
-
-    return context;
 }
