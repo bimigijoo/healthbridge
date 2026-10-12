@@ -16,12 +16,18 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Arrays;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${healthbridge.cors.allowed-origins:http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174}")
+    private String allowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter) {
@@ -35,6 +41,8 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.referrerPolicy(policy -> policy
+                        .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
 
                 .cors(cors ->
                         cors.configurationSource(
@@ -82,12 +90,8 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of(
-                        "http://localhost:5173",
-                        "http://localhost:5174",
-                        "http://127.0.0.1:5173",
-                        "http://127.0.0.1:5174"
-                )
+                Arrays.stream(allowedOrigins.split(",")).map(String::strip)
+                        .filter(origin -> !origin.isBlank()).toList()
         );
 
         configuration.setAllowedMethods(
@@ -104,7 +108,9 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(
                 List.of(
                         "Authorization",
-                        "Content-Type"
+                        "Content-Type",
+                        "X-HealthBridge-Access-Code",
+                        "Idempotency-Key"
                 )
         );
 

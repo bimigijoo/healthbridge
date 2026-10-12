@@ -28,7 +28,7 @@ npm ci
 npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-Open `http://127.0.0.1:5174`. The API defaults to `http://localhost:8080/api`; set `VITE_API_BASE_URL` before starting Vite to use another API address. Backend CORS allows `localhost` and `127.0.0.1` on the existing local frontend ports 5173 and 5174.
+Open `http://127.0.0.1:5174`. The API defaults to same-origin `/api`, proxied by Vite to `http://localhost:8080`. Set `DEV_API_PROXY_TARGET` for another local backend, or `VITE_API_BASE_URL` for an explicit HTTPS public API address. Backend CORS retains the existing local origins and accepts an explicit `CORS_ALLOWED_ORIGINS` list.
 
 ## Verification
 
@@ -38,10 +38,11 @@ From `healthbridge-frontend`:
 npm run lint
 npm run build
 npm run test:ui
+npm run test:live
 npm audit
 ```
 
-The browser suite intercepts every API request with synthetic fixtures. It checks navigation, registration, document operations, consent creation/revocation, provider consultation, admin status changes, expired sessions, and responsive layouts at desktop, tablet, and mobile widths. Browser screenshots and reports are ignored by Git. The tests use port 5174; stop a conflicting server or use the matching local Vite server. In CI, the suite starts its own server.
+The `test:ui` browser suite intercepts every API request with synthetic fixtures. It checks navigation, registration, document operations, consent creation/revocation, provider consultation, admin status changes, expired sessions, and responsive layouts at desktop, tablet, and mobile widths. Browser screenshots and reports are ignored by Git. These mocked tests use port 5174; stop a conflicting server or use the matching local Vite server. In CI, the suite starts its own server. The separate `test:live` suite uses actual HTTPS and backend requests on private test ports, without API interception.
 
 From `healthbridge-backend`:
 
@@ -57,7 +58,7 @@ The Windows wrapper now handles ordinary `.m2` directories and linked directorie
 
 - Workers register and sign in, create a health profile, view a Health ID passport/QR, manage medical records and supporting documents, track follow-ups, and create or revoke temporary sharing sessions.
 - Worker APIs verify resource ownership for profiles, clinical entries, records, documents, timelines, follow-ups, sharing sessions, shared-record lists, and access logs.
-- `/provider-access` already provides temporary consent-based record access and consultation entry. It does not require a permanent provider account. A session grants access to selected records until expiration or revocation; the Health ID QR is not a sharing credential.
+- `/provider-access` provides temporary consent-based record access and consultation entry. Sharing QR links open this page automatically in a normal phone browser. Configure `PUBLIC_FRONTEND_BASE_URL` to a public HTTPS origin to enable the owner-only sharing QR; the Health ID passport QR remains separate. Provider access needs no account or installation.
 - `/admin` manages account status. Backend role checks protect admin endpoints, and deactivation blocks already-issued JWTs on subsequent authenticated requests.
 - Documents accept PDF, JPEG, PNG, or WebP up to 10 MB, with matching extension, declared MIME type, and file signature. Generated storage filenames remain under the upload directory. Signature checks are not malware scanning.
 - Remove attached documents before deleting a medical record. Record deletion removes sharing links transactionally and preserves session access logs.
@@ -65,6 +66,8 @@ The Windows wrapper now handles ordinary `.m2` directories and linked directorie
 ## Demo
 
 See [DEMO.md](DEMO.md) for a synthetic-data walkthrough and verification checklist. The project does not seed users, promote administrators, delete existing data, or publish patient records automatically.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the QR protocol, test isolation, anonymous bearer limitations, and the public HTTPS/PostgreSQL deployment plan. `test:live` uses real browser/API requests with forced, private H2 storage and a loopback test certificate; physical phone-camera and public deployment verification are separate.
 
 ## Checkpoint History
 

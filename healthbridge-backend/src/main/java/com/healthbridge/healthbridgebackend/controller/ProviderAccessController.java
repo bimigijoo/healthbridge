@@ -4,185 +4,80 @@ import com.healthbridge.healthbridgebackend.dto.MedicalRecordResponse;
 import com.healthbridge.healthbridgebackend.dto.ProviderAccessResponse;
 import com.healthbridge.healthbridgebackend.dto.ProviderConsultationRequest;
 import com.healthbridge.healthbridgebackend.entity.AccessLog;
-import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
 import com.healthbridge.healthbridgebackend.entity.SharedRecord;
-import com.healthbridge.healthbridgebackend.entity.SharingSession;
 import com.healthbridge.healthbridgebackend.service.AccessLogService;
-import com.healthbridge.healthbridgebackend.service.HealthProfileService;
-import com.healthbridge.healthbridgebackend.service.MedicalRecordService;
+import com.healthbridge.healthbridgebackend.service.ProviderConsultationService;
 import com.healthbridge.healthbridgebackend.service.SharedRecordService;
 import com.healthbridge.healthbridgebackend.service.SharingSessionService;
 import jakarta.validation.Valid;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.List;
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/api/provider-access")
 public class ProviderAccessController {
+    private final SharingSessionService sessions;
+    private final SharedRecordService sharedRecords;
+    private final AccessLogService logs;
+    private final ProviderConsultationService consultations;
 
-    private final SharingSessionService sharingSessionService;
-    private final SharedRecordService sharedRecordService;
-    private final HealthProfileService healthProfileService;
-    private final MedicalRecordService medicalRecordService;
-    private final AccessLogService accessLogService;
-
-    public ProviderAccessController(
-            SharingSessionService sharingSessionService,
-            SharedRecordService sharedRecordService,
-            HealthProfileService healthProfileService,
-            MedicalRecordService medicalRecordService,
-            AccessLogService accessLogService) {
-
-        this.sharingSessionService = sharingSessionService;
-        this.sharedRecordService = sharedRecordService;
-        this.healthProfileService = healthProfileService;
-        this.medicalRecordService = medicalRecordService;
-        this.accessLogService = accessLogService;
+    public ProviderAccessController(SharingSessionService sessions, SharedRecordService sharedRecords,
+                                    AccessLogService logs, ProviderConsultationService consultations) {
+        this.sessions = sessions;
+        this.sharedRecords = sharedRecords;
+        this.logs = logs;
+        this.consultations = consultations;
     }
 
-    @GetMapping("/{accessToken}")
+    @GetMapping({"", "/{accessToken}"})
+    @Transactional
     public ResponseEntity<ProviderAccessResponse> accessSharedRecords(
-            @PathVariable String accessToken) {
-
-        SharingSession session =
-                sharingSessionService
-                        .findValidSessionByAccessToken(accessToken)
-                        .orElse(null);
-
-        if (session == null) {
-            return ResponseEntity.status(403).body(null);
-        }
-
-        HealthProfile healthProfile =
-                session.getHealthProfile();
-
-        if (healthProfile == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        List<MedicalRecordResponse> medicalRecords =
-                sharedRecordService
-                        .findBySharingSessionId(session.getId())
-                        .stream()
-                        .map(SharedRecord::getMedicalRecord)
-                        .map(this::toResponse)
-                        .toList();
-
-        AccessLog accessLog = new AccessLog();
-
-        accessLog.setSharingSession(session);
-        accessLog.setProviderName(session.getProviderName());
-        accessLog.setProviderFacility(session.getProviderFacility());
-        accessLog.setAction("VIEW_SHARED_RECORDS");
-
-        accessLogService.saveLog(accessLog);
-
-        ProviderAccessResponse response =
-                new ProviderAccessResponse(
-                        session.getId(),
-                        healthProfile.getHealthId(),
-                        session.getProviderName(),
-                        session.getProviderFacility(),
-                        session.getProviderRegistration(),
-                        session.getExpiresAt().toString(),
-                        medicalRecords
-                );
-
-        return ResponseEntity.ok(response);
+            @PathVariable(required = false) String accessToken,
+            @RequestHeader(value = "X-HealthBridge-Access-Code", required = false) String headerCode) {
+        var session = sessions.findValidSessionForUpdate(resolveCode(accessToken, headerCode))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "Sharing access is invalid, expired, or revoked."));
+        var medicalRecords = sharedRecords.findBySharingSessionId(session.getId()).stream()
+                .map(SharedRecord::getMedicalRecord)
+                .filter(record -> record != null && record.getHealthProfile().getId()
+                        .equals(session.getHealthProfile().getId()))
+                .map(this::toResponse).toList();
+        logs.saveLog(AccessLog.builder().sharingSession(session).providerName(session.getProviderName())
+                .providerFacility(session.getProviderFacility()).action("VIEW_SHARED_RECORDS").build());
+        var response = new ProviderAccessResponse(session.getId(), session.getHealthProfile().getHealthId(),
+                session.getProviderName(), session.getProviderFacility(), session.getProviderRegistration(),
+                session.getExpiresAt().atZone(ZoneId.systemDefault()).toInstant().toString(), medicalRecords);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
     }
 
-    @PostMapping("/{accessToken}/consultation")
+    @PostMapping({"/consultation", "/{accessToken}/consultation"})
     public ResponseEntity<MedicalRecordResponse> addConsultation(
-            @PathVariable String accessToken,
+            @PathVariable(required = false) String accessToken,
+            @RequestHeader(value = "X-HealthBridge-Access-Code", required = false) String headerCode,
+            @RequestHeader("Idempotency-Key") String requestId,
             @Valid @RequestBody ProviderConsultationRequest request) {
-
-        SharingSession session =
-                sharingSessionService
-                        .findValidSessionByAccessToken(accessToken)
-                        .orElse(null);
-
-        if (session == null) {
-            return ResponseEntity.status(403).build();
-        }
-
-        HealthProfile healthProfile =
-                session.getHealthProfile();
-
-        if (healthProfile == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        MedicalRecord consultation =
-                new MedicalRecord();
-
-        consultation.setHealthProfile(healthProfile);
-        consultation.setRecordType(
-                MedicalRecord.RecordType.CONSULTATION
-        );
-        consultation.setRecordDate(
-                request.getRecordDate()
-        );
-        consultation.setProviderName(
-                request.getProviderName()
-        );
-        consultation.setProviderFacility(
-                request.getProviderFacility()
-        );
-        consultation.setReason(
-                request.getReason()
-        );
-        consultation.setDiagnosis(
-                request.getDiagnosis()
-        );
-        consultation.setMedication(
-                request.getMedication()
-        );
-        consultation.setNotes(
-                request.getNotes()
-        );
-
-        MedicalRecord savedRecord =
-                medicalRecordService.saveRecord(
-                        consultation
-                );
-
-        AccessLog accessLog = new AccessLog();
-
-        accessLog.setSharingSession(session);
-        accessLog.setProviderName(
-                request.getProviderName()
-        );
-        accessLog.setProviderFacility(
-                request.getProviderFacility()
-        );
-        accessLog.setAction(
-                "ADD_CONSULTATION"
-        );
-
-        accessLogService.saveLog(accessLog);
-
-        return ResponseEntity
-                .status(201)
-                .body(toResponse(savedRecord));
+        var record = consultations.submit(resolveCode(accessToken, headerCode), requestId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).cacheControl(CacheControl.noStore()).body(toResponse(record));
     }
 
-    private MedicalRecordResponse toResponse(
-            MedicalRecord medicalRecord) {
+    private String resolveCode(String pathCode, String headerCode) {
+        if (pathCode != null && headerCode != null && !pathCode.equals(headerCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Conflicting sharing credentials.");
+        }
+        return headerCode == null ? pathCode : headerCode;
+    }
 
-        return new MedicalRecordResponse(
-                medicalRecord.getId(),
-                medicalRecord.getHealthProfile().getId(),
-                medicalRecord.getRecordType().name(),
-                medicalRecord.getRecordDate(),
-                medicalRecord.getProviderName(),
-                medicalRecord.getProviderFacility(),
-                medicalRecord.getReason(),
-                medicalRecord.getDiagnosis(),
-                medicalRecord.getMedication(),
-                medicalRecord.getNotes()
-        );
+    private MedicalRecordResponse toResponse(MedicalRecord record) {
+        return new MedicalRecordResponse(record.getId(), record.getHealthProfile().getId(),
+                record.getRecordType().name(), record.getRecordDate(), record.getProviderName(),
+                record.getProviderFacility(), record.getReason(), record.getDiagnosis(),
+                record.getMedication(), record.getNotes());
     }
 }

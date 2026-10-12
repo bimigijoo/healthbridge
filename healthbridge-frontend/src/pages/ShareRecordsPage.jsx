@@ -3,6 +3,7 @@ import api from "../services/api";
 import { useAuth } from "../context/useAuth";
 import { useNavigate } from "react-router-dom";
 import PageStatus from "../components/PageStatus";
+import SharingSessionQr from "../components/SharingSessionQr";
 
 function ShareRecordsPage() {
     const { user } = useAuth();
@@ -24,6 +25,12 @@ function ShareRecordsPage() {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [createdSession, setCreatedSession] = useState(null);
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(timer);
+    }, []);
 
     const loadData = useCallback(async () => {
         if (!user?.id) {
@@ -168,7 +175,7 @@ function ShareRecordsPage() {
             return false;
         }
 
-        return new Date(session.expiresAt) > new Date();
+        return new Date(session.expiresAtUtc || session.expiresAt).getTime() > now;
     };
 
     if (loading) {
@@ -344,7 +351,7 @@ function ShareRecordsPage() {
                     </form>
                 </section>
 
-                {createdSession && (
+                {createdSession && isActive(createdSession) && (
                     <section className="ui-section">
                         <h2 className="ui-sectionTitle">
                             Temporary Access Created
@@ -356,6 +363,7 @@ function ShareRecordsPage() {
                             records during the active sharing period.
                         </p>
 
+                        <SharingSessionQr key={createdSession.id} session={createdSession} />
                         <div className="ui-accessBox">
                             <div>
                                 <strong>Access Code</strong>
@@ -367,9 +375,11 @@ function ShareRecordsPage() {
 
                             <div className="ui-recordDetails">
                                 Expires:{" "}
-                                {formatDate(createdSession.expiresAt)}
+                                {formatDate(createdSession.expiresAtUtc || createdSession.expiresAt)}
                             </div>
                         </div>
+                        <button type="button" className="danger-button"
+                            onClick={() => void revokeSession(createdSession.id)}>Revoke Access</button>
                     </section>
                 )}
 
@@ -415,11 +425,13 @@ function ShareRecordsPage() {
 
                                             <div className="ui-recordDetails">
                                                 Expires:{" "}
-                                                {formatDate(session.expiresAt)}
+                                                {formatDate(session.expiresAtUtc || session.expiresAt)}
                                             </div>
 
                                             {isActive(session) && (
                                                 <div className="ui-accessBox">
+                                                    {createdSession?.id !== session.id &&
+                                                        <SharingSessionQr key={session.id} session={session} />}
                                                     <strong>Access Code</strong>
 
                                                     <div className="ui-token">

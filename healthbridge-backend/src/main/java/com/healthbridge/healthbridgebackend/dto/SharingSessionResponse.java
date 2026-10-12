@@ -1,6 +1,7 @@
 package com.healthbridge.healthbridgebackend.dto;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 public class SharingSessionResponse {
 
@@ -62,6 +63,10 @@ public class SharingSessionResponse {
 
     public LocalDateTime getExpiresAt() {
         return expiresAt;
+    }
+
+    public String getExpiresAtUtc() {
+        return expiresAt == null ? null : expiresAt.atZone(ZoneId.systemDefault()).toInstant().toString();
     }
 
     public void setExpiresAt(LocalDateTime expiresAt) {

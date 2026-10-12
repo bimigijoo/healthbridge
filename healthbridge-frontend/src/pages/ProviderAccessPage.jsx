@@ -1,16 +1,27 @@
-import { useState } from "react";
-import api from "../services/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import providerApi from "../services/providerApi";
+import PageStatus from "../components/PageStatus";
+
+function localDate() {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function ProviderAccessPage() {
-    const [accessToken, setAccessToken] = useState("");
+    const [initialCode] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get("access") || "");
+    const [accessToken, setAccessToken] = useState(initialCode);
     const [accessData, setAccessData] = useState(null);
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(!!initialCode);
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+    const busy = useRef(false);
+    const submission = useRef(null);
+    const accessGeneration = useRef(0);
 
     const [consultation, setConsultation] = useState({
-        recordDate: new Date().toISOString().split("T")[0],
+        recordDate: localDate(),
         providerName: "",
         providerFacility: "",
         reason: "",
@@ -19,42 +30,77 @@ function ProviderAccessPage() {
         notes: "",
     });
 
-    const accessRecords = async (event) => {
-        event.preventDefault();
-
+    const loadAccess = useCallback(async (code, signal) => {
+        const generation = ++accessGeneration.current;
         setError("");
         setMessage("");
         setAccessData(null);
+        setSubmitted(false);
+        submission.current = null;
 
-        if (!accessToken.trim()) {
+        if (!code.trim()) {
             setError("Please enter the temporary access code.");
+            setLoading(false);
             return;
         }
 
         try {
             setLoading(true);
 
-            const response = await api.get(
-                `/provider-access/${encodeURIComponent(accessToken.trim())}`
-            );
+            const response = await providerApi.get("/provider-access", {
+                headers: { "X-HealthBridge-Access-Code": code.trim() }, signal,
+            });
+            if (signal?.aborted || generation !== accessGeneration.current) return;
 
+            setAccessToken(code.trim());
             setAccessData(response.data);
 
-            setConsultation((current) => ({
-                ...current,
+            setConsultation({
+                recordDate: localDate(), reason: "", diagnosis: "", medication: "", notes: "",
                 providerName: response.data.providerName || "",
                 providerFacility: response.data.providerFacility || "",
-            }));
+            });
 
             setMessage("Authorized medical records loaded successfully.");
         } catch (err) {
+            if (signal?.aborted || generation !== accessGeneration.current) return;
             setError(
                 err.response?.data?.message ||
                 "Unable to access the shared medical records."
             );
         } finally {
-            setLoading(false);
+            if (!signal?.aborted && generation === accessGeneration.current) setLoading(false);
         }
+    }, []);
+
+    useEffect(() => {
+        let controller;
+        let timer;
+        const processLink = code => {
+            if (!code) return;
+            controller?.abort();
+            window.clearTimeout(timer);
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.hash = "";
+            window.history.replaceState(window.history.state, "", cleanUrl.pathname + cleanUrl.search);
+            controller = new AbortController();
+            timer = window.setTimeout(() => void loadAccess(code, controller.signal), 0);
+        };
+        const onHashChange = () => processLink(new URLSearchParams(window.location.hash.slice(1)).get("access"));
+        processLink(initialCode);
+        window.addEventListener("hashchange", onHashChange);
+        return () => {
+            window.removeEventListener("hashchange", onHashChange);
+            window.clearTimeout(timer);
+            controller?.abort();
+        };
+    }, [initialCode, loadAccess]);
+
+    const accessRecords = event => {
+        event.preventDefault();
+        submission.current = null;
+        setSubmitted(false);
+        void loadAccess(accessToken);
     };
 
     const handleConsultationChange = (event) => {
@@ -68,6 +114,7 @@ function ProviderAccessPage() {
 
     const addConsultation = async (event) => {
         event.preventDefault();
+        if (busy.current || submitted) return;
 
         setError("");
         setMessage("");
@@ -77,13 +124,19 @@ function ProviderAccessPage() {
             return;
         }
 
+        const generation = accessGeneration.current;
         try {
+            busy.current = true;
             setLoading(true);
-
-            await api.post(
-                `/provider-access/${encodeURIComponent(accessToken.trim())}/consultation`,
-                consultation
-            );
+            const body = JSON.stringify(consultation);
+            if (!submission.current || submission.current.body !== body) {
+                submission.current = { id: crypto.randomUUID(), body };
+            }
+            await providerApi.post("/provider-access/consultation", consultation, {
+                headers: { "X-HealthBridge-Access-Code": accessToken.trim(), "Idempotency-Key": submission.current.id },
+            });
+            if (generation !== accessGeneration.current) return;
+            setSubmitted(true);
 
             setMessage(
                 "Consultation added successfully to the worker's medical record."
@@ -97,12 +150,18 @@ function ProviderAccessPage() {
                 notes: "",
             }));
         } catch (err) {
+            if (generation !== accessGeneration.current) return;
+            if (err.response?.status === 403) {
+                setAccessData(null);
+                setAccessToken("");
+            }
             setError(
                 err.response?.data?.message ||
                 "Unable to add the consultation."
             );
         } finally {
-            setLoading(false);
+            busy.current = false;
+            if (generation === accessGeneration.current) setLoading(false);
         }
     };
 
@@ -141,7 +200,8 @@ function ProviderAccessPage() {
                     </div>
                 )}
 
-                {!accessData && (
+                {!accessData && loading && <PageStatus loading title="Validating temporary access" />}
+                {!accessData && !loading && (
                     <section className="ui-section">
                         <h2 className="ui-sectionTitle">
                             Enter Temporary Access Code
@@ -158,7 +218,7 @@ function ProviderAccessPage() {
                                 Temporary Access Code
 
                                 <input
-                                    type="text"
+                                    type="password"
                                     autoComplete="off"
                                     required
                                     value={accessToken}
@@ -287,12 +347,18 @@ function ProviderAccessPage() {
                                 part of the worker's medical history.
                             </p>
 
-                            <form onSubmit={addConsultation}>
+                            {submitted ? <button type="button" className="secondary-button" onClick={() => {
+                                submission.current = null;
+                                setSubmitted(false);
+                                setMessage("");
+                            }}>Add Another Consultation</button> : <form onSubmit={addConsultation}>
+                                <fieldset disabled={loading}>
                                 <label className="ui-label">
                                     Consultation Date
 
                                     <input
                                         type="date"
+                                        max={localDate()}
                                         name="recordDate"
                                         value={consultation.recordDate}
                                         onChange={handleConsultationChange}
@@ -307,6 +373,7 @@ function ProviderAccessPage() {
                                     <input
                                         type="text"
                                         name="providerName"
+                                        maxLength={255}
                                         value={consultation.providerName}
                                         onChange={handleConsultationChange}
                                         className="ui-input"
@@ -320,6 +387,7 @@ function ProviderAccessPage() {
                                     <input
                                         type="text"
                                         name="providerFacility"
+                                        maxLength={255}
                                         value={consultation.providerFacility}
                                         onChange={handleConsultationChange}
                                         className="ui-input"
@@ -331,6 +399,7 @@ function ProviderAccessPage() {
 
                                     <textarea
                                         name="reason"
+                                        maxLength={255}
                                         value={consultation.reason}
                                         onChange={handleConsultationChange}
                                         className="ui-textarea"
@@ -343,6 +412,7 @@ function ProviderAccessPage() {
 
                                     <textarea
                                         name="diagnosis"
+                                        maxLength={255}
                                         value={consultation.diagnosis}
                                         onChange={handleConsultationChange}
                                         className="ui-textarea"
@@ -355,6 +425,7 @@ function ProviderAccessPage() {
 
                                     <textarea
                                         name="medication"
+                                        maxLength={255}
                                         value={consultation.medication}
                                         onChange={handleConsultationChange}
                                         className="ui-textarea"
@@ -367,6 +438,7 @@ function ProviderAccessPage() {
 
                                     <textarea
                                         name="notes"
+                                        maxLength={255}
                                         value={consultation.notes}
                                         onChange={handleConsultationChange}
                                         className="ui-textarea"
@@ -377,13 +449,14 @@ function ProviderAccessPage() {
                                 <button
                                     type="submit"
                                     className="primary-button"
-                                    disabled={loading}
+                                    disabled={loading || ![consultation.reason, consultation.diagnosis, consultation.medication, consultation.notes].some(value => value.trim())}
                                 >
                                     {loading
                                         ? "Saving..."
                                         : "Add Consultation"}
                                 </button>
-                            </form>
+                                </fieldset>
+                            </form>}
                         </section>
                     </>
                 )}

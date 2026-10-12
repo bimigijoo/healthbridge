@@ -168,4 +168,21 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<id>mobile-e2e</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<configuration>
+							<useTestClasspath>true</useTestClasspath>
+							<jvmArguments>-Dspring.devtools.restart.enabled=false</jvmArguments>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

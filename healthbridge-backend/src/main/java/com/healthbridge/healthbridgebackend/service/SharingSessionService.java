@@ -27,6 +27,23 @@ public class SharingSessionService {
         return sharingSessionRepository.findById(id);
     }
 
+    public Optional<SharingSession> findByIdForUpdate(Long id) {
+        return sharingSessionRepository.findLockedById(id);
+    }
+
+    public Optional<SharingSession> findValidSessionForUpdate(String code) {
+        if (code == null || code.isBlank() || code.length() > 128) {
+            return Optional.empty();
+        }
+        return sharingSessionRepository.findLockedByAccessToken(code).filter(this::isValid);
+    }
+
+    public boolean isValid(SharingSession session) {
+        return session != null && !session.isRevoked() && session.getHealthProfile() != null
+                && session.getHealthProfile().getUser() != null && session.getHealthProfile().getUser().isActive()
+                && session.getExpiresAt() != null && session.getExpiresAt().isAfter(LocalDateTime.now());
+    }
+
     public Optional<SharingSession> findByAccessToken(
             String accessToken) {
 

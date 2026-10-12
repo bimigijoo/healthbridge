@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         MedicalDocumentController.class,
         FollowUpController.class
 })
-@Import(CurrentUserService.class)
+@Import({CurrentUserService.class, SharingSessionController.class})
 @WithMockUser(username = "worker@example.com", roles = "WORKER")
 class ResourceOwnershipSecurityTest {
 
@@ -201,7 +201,7 @@ class ResourceOwnershipSecurityTest {
                 .expiresAt(LocalDateTime.now().plusHours(1))
                 .build();
 
-        when(sharingSessionService.findById(5L))
+        when(sharingSessionService.findByIdForUpdate(5L))
                 .thenReturn(Optional.of(session));
 
         mockMvc.perform(delete("/api/sharing-sessions/5").with(csrf()))

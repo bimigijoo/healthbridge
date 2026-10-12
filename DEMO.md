@@ -16,8 +16,8 @@ Use only invented names, `.test` email addresses, synthetic records, and synthet
 3. Use an existing synthetic medical record owned by that worker. If none exists, create one through the existing `POST /api/medical-records` endpoint using an authenticated Postman request. Store its JWT privately in a local, unsynced environment; do not export that environment.
 4. Upload a synthetic PDF report. Download it, verify its filename, then delete the attachment with the existing confirmation control. Demonstrate an unsupported extension or oversized file being rejected.
 5. Open the timeline, add an invented follow-up, and mark it complete. Show its completed state and chronological history.
-6. Share a selected synthetic record with an invented provider for one of the existing durations: 1 hour, 24 hours, or 7 days. Transfer the access code privately, outside the recorded demo.
-7. Open Provider Access, retrieve the selected records, and submit a synthetic consultation. Return to the worker's medical records to see the consultation.
+6. Configure the approved public HTTPS frontend origin, then share a selected synthetic record for 1 hour, 24 hours, or 7 days. The sharing QR contains a temporary HTTPS provider link. Keep the QR and fallback code private and out of recorded material.
+7. Scan the sharing QR with the provider phone's default camera and open the offered URL. Records load without login or manual typing, and the credential disappears from the visible URL. Submit a synthetic consultation and check the worker timeline. The manual code remains an optional fallback.
 8. Revoke the session. Confirm that Provider Access now rejects the code. The existing `GET /api/access-logs/session/{sessionId}` endpoint allows the owning worker to inspect the session's access log through an authenticated private request.
 9. Sign in with the existing admin account. Demonstrate deactivating and reactivating a synthetic worker. An already-issued worker JWT must be rejected after deactivation.
 10. Check navigation, forms, table scrolling, loading, missing-profile, and error states at mobile and desktop widths.
@@ -37,4 +37,4 @@ Example synthetic medical-record request body, replacing the profile ID with the
 
 ## Boundaries
 
-Provider access is a temporary bearer capability. Provider identity supplied during sharing is not independently verified. The browser tests use intercepted APIs; backend integration tests use H2 and the actual Spring security chain. A live PostgreSQL walkthrough remains a separate manual check. No existing patient information or database schema was changed to prepare this demo.
+Provider access is a temporary bearer capability. Provider identity supplied during sharing is not independently verified. The UI suite uses intercepted APIs; the separate live suite uses an actual loopback HTTPS frontend and Spring Boot/H2 backend. Physical default-camera scans, public HTTPS, and a PostgreSQL walkthrough remain separate acceptance checks. See [DEPLOYMENT.md](DEPLOYMENT.md). No schema migration is required by the QR feature.

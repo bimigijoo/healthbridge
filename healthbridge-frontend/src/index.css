@@ -44,5 +44,6 @@ input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--teal); f
 textarea { min-height: 100px; resize: vertical; }
 label { color: #334f5b; font-size: 14px; font-weight: 600; }
 form { margin-top: 20px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
 strong { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

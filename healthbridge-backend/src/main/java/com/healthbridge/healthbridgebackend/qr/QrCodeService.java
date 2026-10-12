@@ -26,7 +26,7 @@ public class QrCodeService {
 
         hints.put(
                 EncodeHintType.MARGIN,
-                1
+                4
         );
 
         try {

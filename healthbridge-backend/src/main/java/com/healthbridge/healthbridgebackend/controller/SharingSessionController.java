@@ -15,6 +15,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ public class SharingSessionController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<SharingSessionResponse> createSharingSession(
             @Valid @RequestBody SharingSessionRequest request) {
 
@@ -146,11 +148,12 @@ public class SharingSessionController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> revokeSharingSession(
             @PathVariable Long id) {
 
         SharingSession session = sharingSessionService
-                .findById(id)
+                .findByIdForUpdate(id)
                 .orElse(null);
 
         if (session == null) {

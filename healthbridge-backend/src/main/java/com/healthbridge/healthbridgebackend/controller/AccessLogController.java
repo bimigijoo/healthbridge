@@ -60,7 +60,8 @@ public class AccessLogController {
                 accessLog.getAccessedAt(),
                 accessLog.getProviderName(),
                 accessLog.getProviderFacility(),
-                accessLog.getAction()
+                accessLog.getAction().startsWith(com.healthbridge.healthbridgebackend.service.ProviderConsultationService.RECEIPT_PREFIX)
+                        ? "ADD_CONSULTATION" : accessLog.getAction()
         );
     }
 }

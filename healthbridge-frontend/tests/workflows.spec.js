@@ -41,6 +41,9 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
         if (path.startsWith("/health-timeline/")) return json([{ id: 20, type: "MEDICAL_RECORD", title: "CONSULTATION", eventDate: "2026-01-15", description: "Synthetic demonstration record" }]);
         if (path.startsWith("/follow-ups/")) return json([]);
         if (path.startsWith("/sharing-sessions/profile/")) return json(sessions);
+        if (path.startsWith("/sharing-sessions/") && path.endsWith("/qr")) {
+            return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
+        }
         if (path === "/sharing-sessions" && method === "POST") {
             const session = { id: 40, accessToken: "DEMO-ACCESS", providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", createdAt: "2026-01-15T00:00:00", revoked: false };
             sessions.push(session);
@@ -50,7 +53,7 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
             sessions = sessions.map(session => ({ ...session, revoked: true }));
             return route.fulfill({ status: 204 });
         }
-        if (path.startsWith("/provider-access/")) {
+        if (path === "/provider-access" || path.startsWith("/provider-access/")) {
             if (sessions.some(session => session.revoked)) return json({ message: "Access expired or revoked." }, 403);
             if (method === "POST") return json(record, 201);
             return json({ providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", medicalRecords: [record] });
@@ -128,11 +131,12 @@ test("documents and consent sharing remain usable", async ({ page }) => {
     await page.getByRole("button", { name: "Access Shared Records" }).click();
     await expect(page.getByRole("heading", { name: "Shared Medical Records" })).toBeVisible();
     await expect(page.locator(".ui-recordList")).toContainText("Synthetic demonstration record");
+    await page.getByLabel("Reason for Consultation").fill("Synthetic consultation");
     await page.getByRole("button", { name: "Add Consultation", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Consultation added successfully");
     await checkLayout(page);
     await page.goto("/share-records");
-    await page.getByRole("button", { name: "Revoke" }).click();
+    await page.getByRole("button", { name: "Revoke" }).last().click();
     await expect(page.locator(".ui-status")).toContainText("Revoked");
     await page.goto("/provider-access");
     await page.getByLabel("Temporary Access Code", { exact: true }).fill("DEMO-ACCESS");
@@ -175,4 +179,29 @@ test("expired API sessions return the worker to login", async ({ page }) => {
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/login$/);
     expect(await page.evaluate(() => localStorage.getItem("healthbridge_user"))).toBeNull();
+});
+
+test("camera-style QR link opens access automatically and removes the URL credential", async ({ page }) => {
+    await mockApi(page);
+    const requestPromise = page.waitForRequest(request => new URL(request.url()).pathname === "/api/provider-access");
+    await page.goto("/provider-access#access=DEMO-ACCESS");
+    const request = await requestPromise;
+    await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toBeVisible();
+    expect(new URL(page.url()).hash === "").toBe(true);
+    expect(new URL(request.url()).search === "").toBe(true);
+    expect(request.headers()["authorization"]).toBeUndefined();
+    await expect(page.getByLabel("Temporary Access Code")).toHaveCount(0);
+});
+
+test("invalid, expired, and revoked QR access shows a clean error page", async ({ page }) => {
+    await page.route("**/api/**", route => route.fulfill({ status: 403,
+        json: { message: "Sharing access is invalid, expired, or revoked." } }));
+    for (const code of ["SYNTHETIC-INVALID", "SYNTHETIC-EXPIRED", "SYNTHETIC-REVOKED"]) {
+        const response = page.waitForResponse(response => new URL(response.url()).pathname === "/api/provider-access");
+        await page.goto(`/provider-access#access=${code}`);
+        await response;
+        await expect(page.getByRole("alert")).toContainText("expired, or revoked");
+        expect(new URL(page.url()).hash === "").toBe(true);
+        await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toHaveCount(0);
+    }
 });
