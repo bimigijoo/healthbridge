@@ -3,6 +3,17 @@ import { PNG } from "pngjs";
 import jsQR from "jsqr";
 
 test("real HTTPS QR access, consultation persistence, timeline, and revocation", async ({ page, browser }) => {
+    const readiness = await page.request.get("/api/auth/e2e-ready");
+    expect(readiness.ok()).toBe(true);
+    expect(await readiness.json()).toEqual({ status: "ready", database: "H2",
+        jdbcUrl: "jdbc:h2:mem:healthbridge_mobile_e2e", driver: "H2 JDBC Driver" });
+    const cors = await page.request.fetch("/api/provider-access/consultation", {
+        method: "OPTIONS", headers: { Origin: "https://localhost:18443",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,x-healthbridge-access-code,idempotency-key" },
+    });
+    expect(cors.ok()).toBe(true);
+    expect(cors.headers()["access-control-allow-origin"]).toBe("https://localhost:18443");
     const email = `synthetic-${crypto.randomUUID()}@example.test`;
     const password = "synthetic-local-test-password";
     await page.goto("/register");

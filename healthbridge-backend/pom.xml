@@ -177,7 +177,7 @@
 						<groupId>org.springframework.boot</groupId>
 						<artifactId>spring-boot-maven-plugin</artifactId>
 						<configuration>
-							<useTestClasspath>true</useTestClasspath>
+							<mainClass>com.healthbridge.healthbridgebackend.security.MobileE2eApplication</mainClass>
 							<jvmArguments>-Dspring.devtools.restart.enabled=false</jvmArguments>
 						</configuration>
 					</plugin>
