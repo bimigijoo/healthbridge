@@ -67,6 +67,8 @@ The Windows wrapper now handles ordinary `.m2` directories and linked directorie
 
 New sharing sessions require explicit `authorizeConsultation: true`. `medicalRecordIds: []` grants consultation-only access; it never grants access to all records or automatically exposes later consultations. Existing sessions retain their original consultation permissions. Read-only sharing is not a separate capability in the current model. No schema migration is required for these first-time worker changes.
 
+The authenticated passport reuses the allergy, existing-condition, and current-medication APIs. Its permanent HTTPS QR opens `/passport`, a public reference page with no database lookup or clinical information. Health ID inclusion is an explicit per-QR choice, off by default; a displayed reference is unverified and grants no permissions. Download QR, native Share Link (clipboard fallback), and Print Passport are available. The separate, expiring provider QR is still required for record access or consultation entry.
+
 ## Demo
 
 See [DEMO.md](DEMO.md) for a synthetic-data walkthrough and verification checklist. The project does not seed users, promote administrators, delete existing data, or publish patient records automatically.

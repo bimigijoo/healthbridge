@@ -2,6 +2,12 @@
 
 No deployment, tunnel, or public database exposure is authorized or performed by this change.
 
+## Passport Privacy
+
+The permanent passport QR encodes `https://<public-origin>/passport` by default, or an optional `#healthId=<encoded-reference>` when the worker explicitly includes the reference. The public frontend clears that fragment from the visible URL and makes no clinical or identity lookup API requests. It shows no name, blood group, allergies, medications, conditions, emergency contact, or medical records, even when the viewer happens to be signed in. A reference is unverified text, not identity proof, a JWT, or a consent credential. This privacy control applies to the QR/link currently generated; it cannot erase references already copied or printed. Private clinical information remains on the authenticated, owner-only passport.
+
+The public origin and SPA fallback must also support `/passport`. Passport QR generation and its link API remain owner-authenticated and return `Cache-Control: no-store`. Without a configured public HTTPS origin, QR actions are unavailable but the private health summary still loads. Printed private passports contain health information; workers must handle paper copies privately. Temporary provider sharing remains a distinct, revocable workflow.
+
 ## Architecture
 
 Use one public HTTPS origin, for example `https://healthbridge-demo.example.edu`:

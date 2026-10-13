@@ -13,6 +13,7 @@ Use only invented names, `.test` email addresses, synthetic records, and synthet
 
 1. Register an invented worker, then sign in after the account-created message.
 2. Create a health profile without supplying a Health ID. Verify the server-generated permanent ID; existing profiles retain their IDs.
+   On the private passport, verify existing clinical entries or clear "not recorded" states. Its permanent QR opens the public reference page, never medical records. Health ID inclusion is off by default. Demonstrate Download QR, Share Link, and Print Passport without recording private health details.
 3. Open Medical Records, choose Add Medical Record, and save a LAB REPORT or other appropriate record. A provider consultation is not required. The existing authenticated record API remains available.
 4. Upload a synthetic PDF report. Download it, verify its filename, then delete the attachment with the existing confirmation control. Demonstrate an unsupported extension or oversized file being rejected.
 5. Open the timeline, add an invented follow-up, and mark it complete. Show its completed state and chronological history.

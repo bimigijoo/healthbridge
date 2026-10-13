@@ -33,11 +33,20 @@ public class ProviderAccessLinkService {
     }
 
     public String createLink(String accessCode) {
+        return origin() + "/provider-access#access="
+                + URLEncoder.encode(accessCode, StandardCharsets.UTF_8);
+    }
+
+    public String createPassportLink(String healthId, boolean includeReference) {
+        return origin() + "/passport" + (includeReference ? "#healthId="
+                + URLEncoder.encode(healthId, StandardCharsets.UTF_8) : "");
+    }
+
+    private String origin() {
         if (publicOrigin == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Sharing QR requires a configured public HTTPS frontend address. The manual code remains available.");
+                    "QR links require a configured public HTTPS frontend address.");
         }
-        return publicOrigin + "/provider-access#access="
-                + URLEncoder.encode(accessCode, StandardCharsets.UTF_8);
+        return publicOrigin;
     }
 }

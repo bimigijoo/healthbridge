@@ -71,6 +71,35 @@ class SharingQrIntegrationTest {
         assertFalse(decoded.getText().contains(profile.getHealthId()));
     }
 
+    @Test void passportQrIsHttpsAndDefaultsToNoIdentityReference() throws Exception {
+        for (boolean includeReference : new boolean[]{false, true}) {
+            var result = mvc.perform(get("/api/health-profile/" + profile.getId() + "/qr")
+                    .param("includeReference", Boolean.toString(includeReference))
+                    .header("Authorization", "Bearer " + workerToken(worker)))
+                    .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store")).andReturn();
+            var bitmap = new BinaryBitmap(new HybridBinarizer(new BufferedImageLuminanceSource(
+                    ImageIO.read(new ByteArrayInputStream(result.getResponse().getContentAsByteArray())))));
+            var uri = URI.create(new MultiFormatReader().decode(bitmap).getText());
+            assertEquals("https", uri.getScheme());
+            assertEquals("/passport", uri.getPath());
+            assertNull(uri.getQuery());
+            assertEquals(includeReference ? "healthId=" + profile.getHealthId() : null, uri.getFragment());
+            assertFalse(uri.toString().contains(session.getAccessToken()));
+        }
+    }
+
+    @Test void passportLinksRequireOwnerAuthenticationAndNeverReturnClinicalFields() throws Exception {
+        String path = "/api/health-profile/" + profile.getId() + "/passport-link";
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mvc.perform(get(path).header("Authorization", "Bearer " + workerToken(worker)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.url").value("https://demo.example.test/passport"))
+                .andExpect(jsonPath("$.name").doesNotExist()).andExpect(jsonPath("$.medicalRecords").doesNotExist());
+        var other = users.save(User.builder().name("Other Synthetic").email("passport-other@example.test")
+                .password("unused-synthetic-hash").role(User.Role.WORKER).active(true).build());
+        mvc.perform(get(path).header("Authorization", "Bearer " + workerToken(other)))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void anotherWorkerCannotReadQrAndAnonymousRequestsRequireAuthentication() throws Exception {
         var other = users.save(User.builder().name("Other Synthetic").email("other-qr@example.test")

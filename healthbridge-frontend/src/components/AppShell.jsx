@@ -11,7 +11,7 @@ const workerLinks = [
     ["/share-records", "Consent & sharing", Share2],
 ];
 
-export default function AppShell({ children, publicAccess = false }) {
+export default function AppShell({ children, publicAccess = false, publicLabel = "Provider access" }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const links = user?.role === "ADMIN" ? [["/admin", "Account management", Users]] : workerLinks;
@@ -20,7 +20,7 @@ export default function AppShell({ children, publicAccess = false }) {
         return <div className="provider-shell">
             <header className="public-header">
                 <Link to="/login" className="brand"><HeartPulse aria-hidden="true" /><span>HealthBridge</span></Link>
-                <span className="workspace-label"><ShieldCheck size={16} aria-hidden="true" /> Provider access</span>
+                <span className="workspace-label"><ShieldCheck size={16} aria-hidden="true" /> {publicLabel}</span>
             </header>
             <main id="main-content">{children}</main>
         </div>;

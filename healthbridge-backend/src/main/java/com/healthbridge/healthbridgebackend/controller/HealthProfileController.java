@@ -5,6 +5,7 @@ import com.healthbridge.healthbridgebackend.dto.HealthProfileResponse;
 import com.healthbridge.healthbridgebackend.entity.HealthProfile;
 import com.healthbridge.healthbridgebackend.entity.User;
 import com.healthbridge.healthbridgebackend.qr.QrCodeService;
+import com.healthbridge.healthbridgebackend.qr.ProviderAccessLinkService;
 import com.healthbridge.healthbridgebackend.security.CurrentUserService;
 import com.healthbridge.healthbridgebackend.service.HealthProfileService;
 import com.healthbridge.healthbridgebackend.service.UserService;
@@ -13,6 +14,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
+import java.util.Map;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,17 +26,20 @@ public class HealthProfileController {
     private final UserService userService;
     private final QrCodeService qrCodeService;
     private final CurrentUserService currentUserService;
+    private final ProviderAccessLinkService publicLinks;
 
     public HealthProfileController(
             HealthProfileService healthProfileService,
             UserService userService,
             QrCodeService qrCodeService,
-            CurrentUserService currentUserService) {
+            CurrentUserService currentUserService,
+            ProviderAccessLinkService publicLinks) {
 
         this.healthProfileService = healthProfileService;
         this.userService = userService;
         this.qrCodeService = qrCodeService;
         this.currentUserService = currentUserService;
+        this.publicLinks = publicLinks;
     }
 
     @GetMapping("/user/{userId}")
@@ -92,7 +98,8 @@ public class HealthProfileController {
 
     @GetMapping("/{healthProfileId}/qr")
     public ResponseEntity<byte[]> generateHealthProfileQr(
-            @PathVariable Long healthProfileId) {
+            @PathVariable Long healthProfileId,
+            @RequestParam(defaultValue = "false") boolean includeReference) {
 
         HealthProfile profile =
                 healthProfileService
@@ -106,7 +113,7 @@ public class HealthProfileController {
         currentUserService.assertProfileOwner(profile);
 
         String qrContent =
-                "HEALTHBRIDGE:" + profile.getHealthId();
+                publicLinks.createPassportLink(profile.getHealthId(), includeReference);
 
         byte[] qrImage =
                 qrCodeService.generateQrCode(
@@ -116,6 +123,7 @@ public class HealthProfileController {
                 );
 
         return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
                 .header(
                         HttpHeaders.CONTENT_DISPOSITION,
                         "inline; filename=\"healthbridge-qr.png\""
@@ -123,6 +131,16 @@ public class HealthProfileController {
                 .contentType(MediaType.IMAGE_PNG)
                 .contentLength(qrImage.length)
                 .body(qrImage);
+    }
+
+    @GetMapping("/{healthProfileId}/passport-link")
+    public ResponseEntity<Map<String, String>> passportLink(@PathVariable Long healthProfileId,
+            @RequestParam(defaultValue = "false") boolean includeReference) {
+        var profile = healthProfileService.findById(healthProfileId).orElseThrow(() ->
+                new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND));
+        currentUserService.assertProfileOwner(profile);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of("url",
+                publicLinks.createPassportLink(profile.getHealthId(), includeReference)));
     }
 
     private HealthProfileResponse toResponse(

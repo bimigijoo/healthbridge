@@ -12,7 +12,7 @@ async function authenticate(page, user = worker) {
     }, user);
 }
 
-async function mockApi(page, { missingProfile = false, fail = false, emptyRecords = false } = {}) {
+async function mockApi(page, { missingProfile = false, fail = false, emptyRecords = false, emptyClinical = false } = {}) {
     let hasProfile = !missingProfile;
     let recordList = emptyRecords ? [] : [record];
     let documents = emptyRecords ? [] : [{ id: 30, medicalRecordId: 20, fileName: "synthetic-report.pdf", fileType: "application/pdf" }];
@@ -28,6 +28,11 @@ async function mockApi(page, { missingProfile = false, fail = false, emptyRecord
         if (path === "/auth/login") return json({ message: "Invalid email or password." }, 401);
         if (path.startsWith("/health-profile/user/")) return hasProfile ? json(profile) : json({}, 404);
         if (path === "/health-profile" && method === "POST") { hasProfile = true; return json(profile, 201); }
+        if (path.endsWith("/passport-link")) return json({ url: "https://demo.example.test/passport" +
+            (new URL(request.url()).searchParams.get("includeReference") === "true" ? "#healthId=HB-DEMO-001" : "") });
+        if (path.startsWith("/allergies/profile/")) return json(emptyClinical ? [] : [{ id: 1, allergen: "Synthetic allergy", reaction: "Synthetic reaction" }]);
+        if (path.startsWith("/existing-conditions/profile/")) return json(emptyClinical ? [] : [{ id: 2, conditionName: "Synthetic chronic condition" }]);
+        if (path.startsWith("/current-medications/profile/")) return json(emptyClinical ? [] : [{ id: 3, medicationName: "Synthetic medication", dosage: "Synthetic dose" }]);
         if (path.endsWith("/qr")) return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
         if (path === "/medical-records" && method === "POST") {
             const created = { id: 21, ...request.postDataJSON() };
@@ -262,4 +267,60 @@ test("zero-record consultation consent is explicit and usable", async ({ page })
     await page.getByRole("button", { name: "Add Consultation", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Consultation added successfully");
     await checkLayout(page);
+});
+
+test("private passport reuses clinical data and its public reference exposes none", async ({ page }, testInfo) => {
+    await mockApi(page);
+    await authenticate(page);
+    await page.addInitScript(() => {
+        Object.defineProperty(navigator, "share", { value: async data => { window.passportSharedUrl = data.url; }, configurable: true });
+        window.print = () => { window.passportPrinted = true; };
+    });
+    await page.goto("/health-passport");
+    for (const text of ["Synthetic allergy", "Synthetic chronic condition", "Synthetic medication"]) {
+        await expect(page.getByText(text, { exact: true })).toBeVisible();
+    }
+    await expect(page.getByLabel("Include Health ID in public QR")).not.toBeChecked();
+    await expect(page.getByRole("button", { name: "Share Link" })).toBeEnabled();
+    await page.getByRole("button", { name: "Share Link" }).click();
+    expect(await page.evaluate(() => window.passportSharedUrl)).toBe("https://demo.example.test/passport");
+    await page.getByLabel("Include Health ID in public QR").check();
+    await expect(page.getByRole("button", { name: "Share Link" })).toBeEnabled();
+    await page.getByRole("button", { name: "Share Link" }).click();
+    expect(await page.evaluate(() => window.passportSharedUrl)).toBe("https://demo.example.test/passport#healthId=HB-DEMO-001");
+    await page.getByRole("button", { name: "Print Passport" }).click();
+    expect(await page.evaluate(() => window.passportPrinted)).toBe(true);
+    const download = page.waitForEvent("download");
+    await page.getByRole("link", { name: "Download QR" }).click();
+    expect((await download).suggestedFilename()).toBe("healthbridge-passport-qr.png");
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("private-passport.png"), fullPage: true });
+    const apiCalls = [];
+    page.on("request", request => { if (request.url().includes("/api/")) apiCalls.push(request.url()); });
+    await page.goto("/passport#healthId=HB-DEMO-001");
+    await expect(page.getByRole("heading", { name: "HealthBridge Passport Reference" })).toBeVisible();
+    expect(new URL(page.url()).hash === "").toBe(true);
+    expect(apiCalls).toEqual([]);
+    for (const text of [worker.name, "Synthetic allergy", "Synthetic chronic condition", "Synthetic medication"]) {
+        await expect(page.getByText(text, { exact: true })).toHaveCount(0);
+    }
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("public-passport.png"), fullPage: true });
+});
+
+test("passport empty clinical sections and unavailable QR stay distinct", async ({ page }) => {
+    await mockApi(page, { emptyClinical: true });
+    await authenticate(page);
+    await page.route("**/api/health-profile/*/qr?*", route => route.fulfill({ status: 503, json: { message: "Unconfigured public origin" } }));
+    await page.goto("/health-passport");
+    await expect(page.getByText("No allergies recorded.")).toBeVisible();
+    await expect(page.getByText("No conditions recorded.")).toBeVisible();
+    await expect(page.getByText("No current medications recorded.")).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("configured public HTTPS");
+    await expect(page.getByRole("button", { name: "Print Passport" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Share Link" })).toBeDisabled();
+    await page.route("**/api/allergies/profile/*", route => route.fulfill({ status: 503, json: { message: "Synthetic unavailable" } }));
+    await page.reload();
+    await expect(page.getByText("Allergies could not be loaded.", { exact: false })).toBeVisible();
+    await expect(page.getByText("No allergies recorded.")).toHaveCount(0);
 });

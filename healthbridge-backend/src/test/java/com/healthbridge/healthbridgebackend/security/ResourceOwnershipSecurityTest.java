@@ -85,6 +85,9 @@ class ResourceOwnershipSecurityTest {
     private QrCodeService qrCodeService;
 
     @MockitoBean
+    private com.healthbridge.healthbridgebackend.qr.ProviderAccessLinkService publicLinks;
+
+    @MockitoBean
     private com.healthbridge.healthbridgebackend.service.FollowUpService followUpService;
 
     private User worker;

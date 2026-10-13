@@ -3,13 +3,21 @@ import api from "../services/api";
 import { useAuth } from "../context/useAuth";
 import { useNavigate } from "react-router-dom";
 import PageStatus from "../components/PageStatus";
+import PassportQr from "../components/PassportQr";
+import { Printer } from "lucide-react";
+
+const clinicalSections = [
+    { key: "allergies", endpoint: "allergies", title: "Allergies", name: "allergen", details: ["reaction"], empty: "No allergies recorded." },
+    { key: "conditions", endpoint: "existing-conditions", title: "Chronic & Existing Conditions", name: "conditionName", details: ["diagnosedDate", "notes"], empty: "No conditions recorded." },
+    { key: "medications", endpoint: "current-medications", title: "Current Medications", name: "medicationName", details: ["dosage", "frequency", "notes"], empty: "No current medications recorded." },
+];
 
 function HealthPassportPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
 
     const [healthProfile, setHealthProfile] = useState(null);
-    const [qrCodeUrl, setQrCodeUrl] = useState("");
+    const [clinicalData, setClinicalData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -17,45 +25,35 @@ function HealthPassportPage() {
         if (!user?.id) {
             return;
         }
+        const controller = new AbortController();
 
         const loadPassport = async () => {
             try {
                 const profileResponse = await api.get(
-                    `/health-profile/user/${user.id}`
+                    `/health-profile/user/${user.id}`, { signal: controller.signal }
                 );
 
                 const profile = profileResponse.data;
+                const results = await Promise.allSettled(clinicalSections.map(section =>
+                    api.get(`/${section.endpoint}/profile/${profile.id}`, { signal: controller.signal })));
+                if (controller.signal.aborted) return;
                 setHealthProfile(profile);
-
-                const qrResponse = await api.get(
-                    `/health-profile/${profile.id}/qr`,
-                    {
-                        responseType: "blob",
-                    }
-                );
-
-                const qrUrl = URL.createObjectURL(qrResponse.data);
-                setQrCodeUrl(qrUrl);
+                setClinicalData(Object.fromEntries(clinicalSections.map((section, index) => [section.key,
+                    results[index].status === "fulfilled" ? results[index].value.data : null])));
             } catch (error) {
+                if (controller.signal.aborted) return;
                 setError(
                     error.response?.status === 404 ? "" : error.response?.data?.message ||
                     "Unable to load your digital health passport."
                 );
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) setLoading(false);
             }
         };
 
         void loadPassport();
+        return () => controller.abort();
     }, [user]);
-
-    useEffect(() => {
-        return () => {
-            if (qrCodeUrl) {
-                URL.revokeObjectURL(qrCodeUrl);
-            }
-        };
-    }, [qrCodeUrl]);
 
     if (loading) {
         return <PageStatus loading title="Loading health passport" />;
@@ -86,6 +84,9 @@ function HealthPassportPage() {
                         </p>
                     </div>
 
+                    <button type="button" className="secondary-button passport-controls" onClick={() => window.print()}>
+                        <Printer size={16} aria-hidden="true" /> Print Passport
+                    </button>
                     <button
                         className="secondary-button"
                         onClick={() => navigate("/dashboard")}
@@ -151,30 +152,22 @@ function HealthPassportPage() {
                             </div>
                         </div>
 
-                        <div className="ui-qrSection">
-                            <h2 className="ui-sectionTitle">
-                                Health ID QR
-                            </h2>
-
-                            {qrCodeUrl ? (
-                                <img
-                                    src={qrCodeUrl}
-                                    alt="HealthBridge Health ID QR code"
-                                    className="ui-qrImage"
-                                />
-                            ) : (
-                                <p>
-                                    QR code is not available.
-                                </p>
-                            )}
-
-                            <p className="ui-qrDescription">
-                                This QR code represents your HealthBridge Health
-                                ID. It does not contain your medical records.
-                            </p>
-                        </div>
+                        <PassportQr profileId={healthProfile.id} />
                     </div>
                 </section>
+
+                {clinicalSections.map(section => <section className="ui-section passport-clinical" key={section.key}>
+                    <h2 className="ui-sectionTitle">{section.title}</h2>
+                    {clinicalData[section.key] === null ? <div className="error-message" role="alert">
+                        {section.title} could not be loaded.
+                        <button type="button" className="link-button" onClick={() => window.location.reload()}>Retry</button>
+                    </div> : clinicalData[section.key]?.length ? <ul className="ui-recordList">
+                        {clinicalData[section.key].map(item => <li className="ui-recordItem" key={item.id}>
+                            <strong>{item[section.name] || "Not recorded"}</strong>
+                            {section.details.map(field => item[field] ? <p key={field}>{item[field]}</p> : null)}
+                        </li>)}
+                    </ul> : <p>{section.empty}</p>}
+                </section>)}
 
                 <section className="ui-section">
                     <h2 className="ui-sectionTitle">

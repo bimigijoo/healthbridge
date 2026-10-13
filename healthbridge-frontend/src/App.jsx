@@ -11,6 +11,7 @@ import HealthTimelinePage from "./pages/HealthTimelinePage";
 import RegisterPage from "./pages/RegisterPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AppShell from "./components/AppShell";
+import PublicPassportPage from "./pages/PublicPassportPage";
 
 function ProtectedRoute({ children, role = "WORKER" }) {
     const { isAuthenticated, user } = useAuth();
@@ -29,6 +30,7 @@ function ProtectedRoute({ children, role = "WORKER" }) {
 function App() {
     return (
         <Routes>
+            <Route path="/passport" element={<AppShell publicAccess publicLabel="Passport reference"><PublicPassportPage /></AppShell>} />
             <Route
                 path="/"
                 element={<Navigate to="/login" replace />}

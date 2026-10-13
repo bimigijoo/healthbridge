@@ -19,7 +19,7 @@
 .icon-button { width: 42px; height: 42px; padding: 8px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--muted); display: grid; place-items: center; flex-shrink: 0; }
 .workspace-content { max-width: 1380px; padding: 32px 36px 60px; margin: 0 auto; }
 .skip-link { position: fixed; left: 16px; top: -100px; background: #fff; padding: 12px; z-index: 10; }
-.skip-link:focus { top: 12px; }
+.skip-link:focus-visible { top: 12px; }
 .page-container, .dashboard-page, .ui-page, .ui-container { width: 100%; min-width: 0; }
 .page-header, .dashboard-header, .ui-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; margin-bottom: 28px; }
 .page-header p, .dashboard-header p, .ui-subtitle { margin-bottom: 0; max-width: 650px; }
@@ -92,6 +92,11 @@ label.ui-recordItem:has(input:checked) { border-color: #408c80; background: #eff
 .ui-accessBox { padding: 16px 0; border-top: 1px solid var(--border); }
 .ui-token { font-family: Consolas, monospace; word-break: break-all; background: #edf3f5; padding: 14px; margin: 12px 0; border-radius: 6px; }
 .sharing-qr { margin: 20px 0; }
+.public-passport-reference, .ui-infoRow span, .profile-grid strong { overflow-wrap: anywhere; min-width: 0; }
+.passport-clinical ul { list-style: none; padding: 0; margin: 0; }
+.passport-clinical .ui-recordItem { overflow-wrap: anywhere; }
+@media print { .skip-link, .sidebar, .workspace-header, .public-header, .passport-controls, .ui-header button { display: none !important; }
+    .app-shell, .workspace { display: block !important; } .workspace-content { padding: 0 !important; } }
 .record-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 @media (max-width: 600px) { .record-entry-grid { grid-template-columns: minmax(0, 1fr); } }
 .sharing-qr img { display: block; width: 280px; max-width: 100%; height: auto; aspect-ratio: 1; background: #fff; }

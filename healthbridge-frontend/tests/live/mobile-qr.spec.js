@@ -165,3 +165,41 @@ test("zero-record consultation-only QR produces the worker's first consultation"
         expect(denied.status()).toBe(403);
     } finally { await context.close(); }
 });
+
+test("private passport uses existing clinical APIs and public QR reveals no clinical data", async ({ page, browser }) => {
+    const { profile, headers } = await registerWorker(page);
+    for (const [endpoint, values] of [
+        ["allergies", { allergen: "Synthetic passport allergy", reaction: "Synthetic reaction" }],
+        ["existing-conditions", { conditionName: "Synthetic passport condition" }],
+        ["current-medications", { medicationName: "Synthetic passport medication", dosage: "Synthetic dose" }],
+    ]) {
+        const response = await page.request.post(`/api/${endpoint}`, { headers, data: { healthProfileId: profile.id, ...values } });
+        expect(response.status()).toBe(201);
+    }
+    const qr = page.waitForResponse(response => new URL(response.url()).pathname === `/api/health-profile/${profile.id}/qr`);
+    await page.goto("/health-passport");
+    for (const text of ["Synthetic passport allergy", "Synthetic passport condition", "Synthetic passport medication"]) {
+        await expect(page.getByText(text, { exact: true })).toBeVisible();
+    }
+    const png = PNG.sync.read(await (await qr).body());
+    const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
+    expect(!!decoded).toBe(true);
+    const link = new URL(decoded.data);
+    expect(link.origin === "https://localhost:18443" && link.pathname === "/passport" && !link.hash && !link.search).toBe(true);
+    const download = page.waitForEvent("download");
+    await page.getByRole("link", { name: "Download QR" }).click();
+    expect((await download).suggestedFilename()).toBe("healthbridge-passport-qr.png");
+    const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
+    try {
+        const publicPage = await context.newPage();
+        let apiCalls = 0;
+        publicPage.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) apiCalls++; });
+        await publicPage.goto(link.href);
+        await expect(publicPage.getByRole("heading", { name: "HealthBridge Passport Reference" })).toBeVisible();
+        expect(apiCalls).toBe(0);
+        for (const text of [profile.healthId, "Synthetic passport allergy", "Synthetic passport condition", "Synthetic passport medication"]) {
+            await expect(publicPage.getByText(text, { exact: true })).toHaveCount(0);
+        }
+        expect(await publicPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    } finally { await context.close(); }
+});
