@@ -13,4 +13,8 @@ public interface AccessLogRepository extends JpaRepository<AccessLog, Long> {
     List<AccessLog> findBySharingSessionIdOrderByAccessedAtDesc(Long sharingSessionId);
 
     Optional<AccessLog> findFirstBySharingSessionIdAndActionStartingWith(Long sessionId, String actionPrefix);
+
+    long countByAction(String action);
+    long countByActionStartingWith(String prefix);
+    long countByAccessedAtAfter(java.time.LocalDateTime time);
 }

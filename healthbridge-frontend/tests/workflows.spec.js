@@ -74,6 +74,13 @@ async function mockApi(page, { missingProfile = false, fail = false, emptyRecord
                 medicalRecords: sessions.length ? recordList.filter(record => sessions[0].medicalRecordIds.includes(record.id)) : recordList });
         }
         if (path === "/admin/users") return json(accounts);
+        if (path === "/admin/overview") return json({ totalAccounts: accounts.length,
+            activeAccounts: accounts.filter(account => account.active).length,
+            inactiveAccounts: accounts.filter(account => !account.active).length,
+            workers: accounts.filter(account => account.role === "WORKER").length, admins: 1, healthProfiles: 1,
+            sharingSessions: sessions.length, activeSessions: sessions.filter(session => !session.revoked).length,
+            expiredSessions: 0, revokedSessions: sessions.filter(session => session.revoked).length,
+            inactiveWorkerSessions: 0, recordViews: 0, consultationsAdded: 0, auditEventsLast24Hours: 0 });
         if (path.startsWith("/admin/users/") && method === "PATCH") {
             const id = Number(path.split("/")[3]);
             accounts = accounts.map(account => account.id === id ? { ...account, active: request.postDataJSON().active } : account);
@@ -342,4 +349,46 @@ test("provider begins with QR authorization and clears access when the session e
     await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toHaveCount(0);
     await expect(page.getByLabel("Temporary Access Code")).toHaveValue("");
     await expect(page.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
+});
+
+test("admin overview errors preserve account actions and successful retry shows real fixture counts", async ({ page }, testInfo) => {
+    await mockApi(page);
+    await authenticate(page, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN" });
+    await page.route("**/api/admin/overview", route => route.fulfill({ status: 503, json: { message: "Synthetic overview unavailable" } }));
+    await page.goto("/admin");
+    await expect(page.getByRole("alert")).toContainText("Synthetic overview unavailable");
+    await expect(page.getByRole("button", { name: "Deactivate", exact: true })).toBeVisible();
+    await page.unroute("**/api/admin/overview");
+    await page.getByRole("button", { name: "Retry overview" }).click();
+    await expect(page.getByRole("heading", { name: "Recorded Consent Activity" })).toBeVisible();
+    const metric = page.getByRole("region", { name: "Administration overview" }).locator(".metric").filter({ hasText: /^Workers/ });
+    await expect(metric.locator("strong")).toHaveText("1");
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("admin-overview.png"), fullPage: true });
+});
+
+test("an older admin overview response cannot replace a newer refresh", async ({ page }) => {
+    await mockApi(page);
+    await authenticate(page, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN" });
+    let first;
+    let requests = 0;
+    await page.route("**/api/admin/overview", async route => {
+        requests++;
+        const response = { workers: 1, healthProfiles: 1, sharingSessions: 0, activeSessions: 0,
+            expiredSessions: 0, revokedSessions: 0, inactiveWorkerSessions: 0, recordViews: 0,
+            consultationsAdded: 0, auditEventsLast24Hours: requests };
+        if (requests === 1) first = { route, response };
+        else await route.fulfill({ json: response });
+    });
+    await page.goto("/admin");
+    await expect(page.getByRole("button", { name: "Refresh", exact: true })).toBeEnabled();
+    await expect.poll(() => !!first).toBe(true);
+    await page.getByRole("button", { name: "Refresh", exact: true }).click();
+    const events = page.locator(".admin-summary-grid div").filter({ hasText: "Audit events, last 24 hours" }).locator("dd");
+    await expect(events).toHaveText("2");
+    const olderResponse = page.waitForResponse(response => new URL(response.url()).pathname === "/api/admin/overview");
+    await first.route.fulfill({ json: first.response });
+    await (await olderResponse).finished();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(events).toHaveText("2");
 });

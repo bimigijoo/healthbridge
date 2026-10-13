@@ -25,4 +25,9 @@ public interface SharingSessionRepository extends JpaRepository<SharingSession, 
     List<SharingSession> findByHealthProfileId(Long healthProfileId);
 
     List<SharingSession> findByHealthProfileIdAndRevokedFalse(Long healthProfileId);
+
+    long countByRevokedTrue();
+    long countByRevokedFalseAndExpiresAtLessThanEqual(java.time.LocalDateTime time);
+    long countByRevokedFalseAndExpiresAtAfterAndHealthProfileUserActiveTrue(java.time.LocalDateTime time);
+    long countByRevokedFalseAndExpiresAtAfterAndHealthProfileUserActiveFalse(java.time.LocalDateTime time);
 }

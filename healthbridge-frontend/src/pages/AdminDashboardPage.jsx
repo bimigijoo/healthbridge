@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw, UserCheck, UserX } from "lucide-react";
 import api from "../services/api";
 import { useAuth } from "../context/useAuth";
@@ -11,8 +11,28 @@ function AdminDashboardPage() {
     const [error, setError] = useState("");
     const [statusMessage, setStatusMessage] = useState("");
     const [updatingUserId, setUpdatingUserId] = useState(null);
+    const [overview, setOverview] = useState(null);
+    const [overviewLoading, setOverviewLoading] = useState(true);
+    const [overviewError, setOverviewError] = useState("");
+    const overviewRequest = useRef(0);
+
+    const loadOverview = useCallback(async () => {
+        const request = ++overviewRequest.current;
+        setOverviewLoading(true);
+        setOverviewError("");
+        try {
+            const response = await api.get("/admin/overview");
+            if (request !== overviewRequest.current) return;
+            setOverview(response.data);
+        } catch (err) {
+            if (request !== overviewRequest.current) return;
+            setOverview(null);
+            setOverviewError(err.response?.data?.message || "Administration overview could not be loaded.");
+        } finally { if (request === overviewRequest.current) setOverviewLoading(false); }
+    }, []);
 
     const loadUsers = useCallback(async () => {
+        void loadOverview();
         try {
             setLoading(true);
             setError("");
@@ -23,7 +43,7 @@ function AdminDashboardPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [loadOverview]);
 
     useEffect(() => {
         const timer = window.setTimeout(() => void loadUsers(), 0);
@@ -63,6 +83,29 @@ function AdminDashboardPage() {
             <div className="metric danger"><span>Inactive accounts</span><strong>{users.length - activeUsers}</strong></div>
         </div>}
         {statusMessage && <div className="success-message" role="status">{statusMessage}</div>}
+        <section className="ui-section" aria-label="Administration overview">
+            <h2>Workspace Overview</h2>
+            {overviewLoading ? <p role="status">Loading administration overview...</p> : overviewError ?
+                <div className="error-message" role="alert">{overviewError}
+                    <button type="button" className="link-button" onClick={() => void loadOverview()}>Retry overview</button>
+                </div> : overview && <>
+                    <div className="metric-grid admin-metric-grid">
+                        {[["Workers", "workers"], ["Worker profiles", "healthProfiles"], ["Sharing sessions", "sharingSessions"],
+                            ["Active sessions", "activeSessions"]].map(([label, key]) =>
+                            <div className="metric" key={key}><span>{label}</span><strong>{overview[key]}</strong></div>)}
+                    </div>
+                    <h3>Sharing Session Status</h3>
+                    <dl className="admin-summary-grid">
+                        {[["Expired", "expiredSessions"], ["Revoked", "revokedSessions"], ["Blocked by inactive worker", "inactiveWorkerSessions"]]
+                            .map(([label, key]) => <div key={key}><dt>{label}</dt><dd>{overview[key]}</dd></div>)}
+                    </dl>
+                    <h3>Recorded Consent Activity</h3>
+                    <dl className="admin-summary-grid">
+                        {[["Record views", "recordViews"], ["Consultations added", "consultationsAdded"], ["Audit events, last 24 hours", "auditEventsLast24Hours"]]
+                            .map(([label, key]) => <div key={key}><dt>{label}</dt><dd>{overview[key]}</dd></div>)}
+                    </dl>
+                </>}
+        </section>
         {loading ? <PageStatus loading title="Loading accounts" /> : error ?
             <PageStatus error title="Accounts could not be loaded" description={error} onRetry={() => void loadUsers()} /> :
             users.length === 0 ? <PageStatus title="No accounts found" /> :

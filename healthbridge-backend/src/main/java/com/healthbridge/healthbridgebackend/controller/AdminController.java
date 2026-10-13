@@ -3,6 +3,9 @@ package com.healthbridge.healthbridgebackend.controller;
 import com.healthbridge.healthbridgebackend.dto.UserResponse;
 import com.healthbridge.healthbridgebackend.entity.User;
 import com.healthbridge.healthbridgebackend.service.UserService;
+import com.healthbridge.healthbridgebackend.service.AdminOverviewService;
+import com.healthbridge.healthbridgebackend.dto.AdminOverviewResponse;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -16,9 +19,16 @@ import java.util.Map;
 public class AdminController {
 
     private final UserService userService;
+    private final AdminOverviewService overview;
 
-    public AdminController(UserService userService) {
+    public AdminController(UserService userService, AdminOverviewService overview) {
         this.userService = userService;
+        this.overview = overview;
+    }
+
+    @GetMapping("/overview")
+    public ResponseEntity<AdminOverviewResponse> overview() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(overview.overview());
     }
 
     @GetMapping("/users")

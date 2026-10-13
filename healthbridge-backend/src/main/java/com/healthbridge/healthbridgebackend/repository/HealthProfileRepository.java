@@ -12,4 +12,6 @@ public interface HealthProfileRepository extends JpaRepository<HealthProfile, Lo
     Optional<HealthProfile> findByUserId(Long userId);
 
     boolean existsByHealthId(String healthId);
+
+    long countByUserRole(com.healthbridge.healthbridgebackend.entity.User.Role role);
 }

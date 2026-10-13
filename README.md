@@ -62,6 +62,7 @@ The Windows wrapper now handles ordinary `.m2` directories and linked directorie
 - Worker APIs verify resource ownership for profiles, clinical entries, records, documents, timelines, follow-ups, sharing sessions, shared-record lists, and access logs.
 - `/provider-access` provides temporary consent-based record access and consultation entry. Sharing QR links open this page automatically in a normal phone browser. Configure `PUBLIC_FRONTEND_BASE_URL` to a public HTTPS origin to enable the owner-only sharing QR; the Health ID passport QR remains separate. Provider access needs no account or installation.
 - `/admin` manages account status. Backend role checks protect admin endpoints, and deactivation blocks already-issued JWTs on subsequent authenticated requests.
+- `/api/admin/overview` provides read-only aggregate worker/profile counts, consent-session states, successful record views/consultation activity, and the last 24 hours of stored audit events. It returns numbers only, never clinical details, credentials, or provider identities. Rejected requests are not stored in the existing audit table, so this is not a complete security-event report.
 - Documents accept PDF, JPEG, PNG, or WebP up to 10 MB, with matching extension, declared MIME type, and file signature. Generated storage filenames remain under the upload directory. Signature checks are not malware scanning.
 - Remove attached documents before deleting a medical record. Record deletion removes sharing links transactionally and preserves session access logs.
 

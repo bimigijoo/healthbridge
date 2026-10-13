@@ -21,6 +21,7 @@ Use only invented names, `.test` email addresses, synthetic records, and synthet
 7. Scan the sharing QR with the provider phone's default camera and open the offered URL. Records load without login or manual typing, and the credential disappears from the visible URL. Submit a synthetic consultation and check the worker timeline. The manual code remains an optional fallback.
 8. Revoke the session. Confirm that Provider Access now rejects the code. The existing `GET /api/access-logs/session/{sessionId}` endpoint allows the owning worker to inspect the session's access log through an authenticated private request.
 9. Sign in with the existing admin account. Demonstrate deactivating and reactivating a synthetic worker. An already-issued worker JWT must be rejected after deactivation.
+   Check the read-only workspace/session/consent activity counts. Deactivated-worker sessions are excluded from active access. Only aggregates are shown; administrators gain no medical-record access.
 10. Check navigation, forms, table scrolling, loading, missing-profile, and error states at mobile and desktop widths.
 
 Example synthetic medical-record request body, replacing the profile ID with the demo worker's own ID:
