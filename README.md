@@ -47,21 +47,25 @@ The `test:ui` browser suite intercepts every API request with synthetic fixtures
 From `healthbridge-backend`:
 
 ```powershell
-.\mvnw.cmd "-Dmaven.repo.local=target/.m2/repository" verify -B -ntp
+.\mvnw.cmd "-Dmaven.repo.local=target/.m2/repository" "-Dhealthbridge.build.directory=target/checkpoint-verification" verify -B -ntp
 ```
 
 The isolated Maven cache is optional. Tests use an in-memory H2 database in PostgreSQL compatibility mode and synthetic credentials from `src/test/resources/application.properties`. They do not connect to the application PostgreSQL database or read uploaded medical files. Production packaging keeps H2 in test scope. An H2 test pass does not certify all PostgreSQL-specific behavior.
+
+The separate verification build directory avoids updating a running application's `target/classes` and triggering DevTools reload. Live browser tests similarly build into `target/live-e2e-build`. Normal builds keep the existing default `target` directory.
 
 The Windows wrapper now handles ordinary `.m2` directories and linked directories without indexing a null `Target` array. Its Maven version and trusted Maven Central distribution URL are unchanged.
 
 ## Existing Workflows
 
-- Workers register and sign in, create a health profile, view a Health ID passport/QR, manage medical records and supporting documents, track follow-ups, and create or revoke temporary sharing sessions.
+- Workers register and sign in, create a profile with a permanent server-generated Health ID, view a passport/QR, create medical records independently of provider consultations, upload existing reports, track follow-ups, and create or revoke temporary sharing sessions. Existing profiles and Health IDs are preserved.
 - Worker APIs verify resource ownership for profiles, clinical entries, records, documents, timelines, follow-ups, sharing sessions, shared-record lists, and access logs.
 - `/provider-access` provides temporary consent-based record access and consultation entry. Sharing QR links open this page automatically in a normal phone browser. Configure `PUBLIC_FRONTEND_BASE_URL` to a public HTTPS origin to enable the owner-only sharing QR; the Health ID passport QR remains separate. Provider access needs no account or installation.
 - `/admin` manages account status. Backend role checks protect admin endpoints, and deactivation blocks already-issued JWTs on subsequent authenticated requests.
 - Documents accept PDF, JPEG, PNG, or WebP up to 10 MB, with matching extension, declared MIME type, and file signature. Generated storage filenames remain under the upload directory. Signature checks are not malware scanning.
 - Remove attached documents before deleting a medical record. Record deletion removes sharing links transactionally and preserves session access logs.
+
+New sharing sessions require explicit `authorizeConsultation: true`. `medicalRecordIds: []` grants consultation-only access; it never grants access to all records or automatically exposes later consultations. Existing sessions retain their original consultation permissions. Read-only sharing is not a separate capability in the current model. No schema migration is required for these first-time worker changes.
 
 ## Demo
 

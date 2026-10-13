@@ -231,6 +231,7 @@ class ResourceOwnershipSecurityTest {
                                   "durationHours": 24,
                                   "providerName": "Dr. Test",
                                   "providerFacility": "Clinic",
+                                  "authorizeConsultation": true,
                                   "medicalRecordIds": [77]
                                 }
                                 """))

@@ -1,7 +1,8 @@
 package com.healthbridge.healthbridgebackend.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
@@ -11,16 +12,22 @@ public class SharingSessionRequest {
     @NotNull
     private Long healthProfileId;
 
-    @NotEmpty
-    private List<Long> medicalRecordIds;
+    @NotNull
+    private List<@NotNull @Positive Long> medicalRecordIds;
+
+    @AssertTrue(message = "Confirm permission for the provider to add a consultation.")
+    private boolean authorizeConsultation;
 
     @NotNull
     private Integer durationHours;
 
+    @Size(max = 255)
     private String providerName;
 
+    @Size(max = 255)
     private String providerFacility;
 
+    @Size(max = 255)
     private String providerRegistration;
 
     public SharingSessionRequest() {
@@ -44,6 +51,14 @@ public class SharingSessionRequest {
 
     public Long getHealthProfileId() {
         return healthProfileId;
+    }
+
+    public boolean isAuthorizeConsultation() {
+        return authorizeConsultation;
+    }
+
+    public void setAuthorizeConsultation(boolean authorizeConsultation) {
+        this.authorizeConsultation = authorizeConsultation;
     }
 
     public void setHealthProfileId(Long healthProfileId) {

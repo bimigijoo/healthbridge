@@ -5,6 +5,7 @@ import com.healthbridge.healthbridgebackend.repository.HealthProfileRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class HealthProfileService {
@@ -16,6 +17,13 @@ public class HealthProfileService {
     }
 
     public HealthProfile saveProfile(HealthProfile healthProfile) {
+        if (healthProfile.getId() == null && (healthProfile.getHealthId() == null || healthProfile.getHealthId().isBlank())) {
+            String healthId;
+            do {
+                healthId = "HB-" + UUID.randomUUID();
+            } while (healthProfileRepository.existsByHealthId(healthId));
+            healthProfile.setHealthId(healthId);
+        }
         return healthProfileRepository.save(healthProfile);
     }
 

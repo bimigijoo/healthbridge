@@ -5,18 +5,18 @@ Use only invented names, `.test` email addresses, synthetic records, and synthet
 ## Preparation
 
 1. Run the frontend lint/build/browser checks and backend `verify` command in the root README.
-2. Start the backend with schema validation and SQL logging disabled, using the existing database and securely supplied environment variables.
+2. For a manual demonstration, use an approved synthetic demo database with schema validation and SQL logging disabled. Never create demo patients in an existing patient database. Automated tests use H2 and separate build directories and do not require stopping the application on port 8080.
 3. Start the frontend on port 5174. Use an existing authorized admin account for administration; public registration always creates a worker.
 4. For an entirely isolated UI demonstration, run `npm run test:ui`. Its API fixtures cover the screens and workflows without contacting PostgreSQL. Successful screenshots are under the ignored `healthbridge-frontend/test-results` directory; passport tests use a placeholder image, not a real Health ID QR.
 
 ## Walkthrough
 
 1. Register an invented worker, then sign in after the account-created message.
-2. Create a health profile with an invented Health ID such as `HB-DEMO-001`. View the passport and verify that its QR contains only the Health ID representation.
-3. Use an existing synthetic medical record owned by that worker. If none exists, create one through the existing `POST /api/medical-records` endpoint using an authenticated Postman request. Store its JWT privately in a local, unsynced environment; do not export that environment.
+2. Create a health profile without supplying a Health ID. Verify the server-generated permanent ID; existing profiles retain their IDs.
+3. Open Medical Records, choose Add Medical Record, and save a LAB REPORT or other appropriate record. A provider consultation is not required. The existing authenticated record API remains available.
 4. Upload a synthetic PDF report. Download it, verify its filename, then delete the attachment with the existing confirmation control. Demonstrate an unsupported extension or oversized file being rejected.
 5. Open the timeline, add an invented follow-up, and mark it complete. Show its completed state and chronological history.
-6. Configure the approved public HTTPS frontend origin, then share a selected synthetic record for 1 hour, 24 hours, or 7 days. The sharing QR contains a temporary HTTPS provider link. Keep the QR and fallback code private and out of recorded material.
+6. Configure the approved public HTTPS frontend origin, select synthetic records if desired, and explicitly authorize a new provider consultation for 1 hour, 24 hours, or 7 days. An empty selection creates consultation-only access and exposes no records, including records created afterward. Keep the QR and fallback code private and out of recorded material.
 7. Scan the sharing QR with the provider phone's default camera and open the offered URL. Records load without login or manual typing, and the credential disappears from the visible URL. Submit a synthetic consultation and check the worker timeline. The manual code remains an optional fallback.
 8. Revoke the session. Confirm that Provider Access now rejects the code. The existing `GET /api/access-logs/session/{sessionId}` endpoint allows the owning worker to inspect the session's access log through an authenticated private request.
 9. Sign in with the existing admin account. Demonstrate deactivating and reactivating a synthetic worker. An already-issued worker JWT must be rejected after deactivation.

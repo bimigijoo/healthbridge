@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,11 +54,19 @@ class DocumentManagementTest {
 
     @Test
     void rejectsSpoofedPdfAndMismatchedExtension() {
-        assertEquals(400, controller.uploadDocument(1L,
+        assertEquals(400, assertThrows(ResponseStatusException.class, () -> controller.uploadDocument(1L,
                 new MockMultipartFile("file", "report.pdf", "application/pdf", "not a pdf".getBytes()))
-                .getStatusCode().value());
-        assertEquals(400, controller.uploadDocument(1L,
+                ).getStatusCode().value());
+        assertEquals(400, assertThrows(ResponseStatusException.class, () -> controller.uploadDocument(1L,
                 new MockMultipartFile("file", "report.png", "application/pdf", "%PDF-1.7".getBytes()))
+                ).getStatusCode().value());
+        verify(documents, never()).saveDocument(any());
+    }
+
+    @Test void oversizedUploadIsRejectedBeforeStorage() {
+        var file = mock(MultipartFile.class);
+        when(file.getSize()).thenReturn(11L * 1024 * 1024);
+        assertEquals(413, assertThrows(ResponseStatusException.class, () -> controller.uploadDocument(1L, file))
                 .getStatusCode().value());
         verify(documents, never()).saveDocument(any());
     }

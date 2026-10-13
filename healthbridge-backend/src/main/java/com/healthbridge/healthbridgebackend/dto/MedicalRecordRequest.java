@@ -2,6 +2,8 @@ package com.healthbridge.healthbridgebackend.dto;
 
 import com.healthbridge.healthbridgebackend.entity.MedicalRecord;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
@@ -14,13 +16,20 @@ public class MedicalRecordRequest {
     private MedicalRecord.RecordType recordType;
 
     @NotNull
+    @PastOrPresent
     private LocalDate recordDate;
 
+    @Size(max = 255)
     private String providerName;
+    @Size(max = 255)
     private String providerFacility;
+    @Size(max = 255)
     private String reason;
+    @Size(max = 255)
     private String diagnosis;
+    @Size(max = 255)
     private String medication;
+    @Size(max = 255)
     private String notes;
 
     public MedicalRecordRequest() {

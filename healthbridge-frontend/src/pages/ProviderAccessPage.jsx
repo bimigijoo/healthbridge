@@ -281,8 +281,7 @@ function ProviderAccessPage() {
 
                             {accessData.medicalRecords?.length === 0 ? (
                                 <p>
-                                    No medical records were included in this
-                                    sharing session.
+                                    No medical records were shared. This session authorizes a new consultation only.
                                 </p>
                             ) : (
                                 <div className="ui-recordList">

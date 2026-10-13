@@ -14,7 +14,6 @@ function HealthProfilePage() {
     const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
-        healthId: "",
         dateOfBirth: "",
         gender: "",
         bloodGroup: "",
@@ -69,10 +68,10 @@ function HealthProfilePage() {
             );
 
             setProfile(response.data);
-        } catch {
+        } catch (err) {
             setError(
-                "Unable to create the health profile. " +
-                "Please check the information and try again."
+                err.response?.status === 409 ? "A health profile already exists for your account. Reload to view it." :
+                err.response?.data?.message || "Unable to create the health profile. Please check the information and try again."
             );
         } finally {
             setSubmitting(false);
@@ -182,29 +181,13 @@ function HealthProfilePage() {
                     <h2>Create Your Health Profile</h2>
 
                     <p>
-                        Enter your basic health profile
-                        information to create your Health ID.
+                        Basic health information
                     </p>
 
                     <form
                         className="profile-form"
                         onSubmit={handleSubmit}
                     >
-
-                        <div className="form-group">
-                            <label htmlFor="healthId">
-                                Health ID
-                            </label>
-
-                            <input
-                                id="healthId"
-                                name="healthId"
-                                value={formData.healthId}
-                                onChange={handleChange}
-                                placeholder="Example: HB-KL-2026-001285"
-                                required
-                            />
-                        </div>
 
                         <div className="form-group">
                             <label htmlFor="dateOfBirth">

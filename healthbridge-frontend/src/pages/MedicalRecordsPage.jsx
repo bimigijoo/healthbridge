@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import api from "../services/api";
 import PageStatus from "../components/PageStatus";
-import { Download, Trash2, Upload } from "lucide-react";
+import { Download, Plus, Trash2, Upload } from "lucide-react";
+import CreateMedicalRecordForm from "../components/CreateMedicalRecordForm";
 
 function MedicalRecordsPage() {
     const { user } = useAuth();
@@ -16,6 +17,7 @@ function MedicalRecordsPage() {
     const [uploadingRecordId, setUploadingRecordId] = useState(null);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [creatingRecord, setCreatingRecord] = useState(false);
 
     const loadDocuments = useCallback(async (recordList) => {
         const documentMap = {};
@@ -308,6 +310,17 @@ function MedicalRecordsPage() {
                 </div>
             )}
 
+            {creatingRecord ? <CreateMedicalRecordForm profileId={healthProfile.id}
+                onCancel={() => setCreatingRecord(false)} onCreated={record => {
+                    setRecords(current => [record, ...current].sort((a, b) => b.recordDate.localeCompare(a.recordDate)));
+                    setDocuments(current => ({ ...current, [record.id]: [] }));
+                    setCreatingRecord(false);
+                    setError("");
+                    setSuccess("Medical record saved successfully.");
+                }} /> : <button type="button" className="primary-button" onClick={() => setCreatingRecord(true)}>
+                    <Plus size={16} aria-hidden="true" /> Add Medical Record
+                </button>}
+
             <section className="profile-card">
                 <div className="records-intro">
                     <h2>My Medical Records</h2>
@@ -324,9 +337,7 @@ function MedicalRecordsPage() {
                         <h3>No medical records found</h3>
 
                         <p>
-                            Your medical history will appear here
-                            when records are added through
-                            HealthBridge.
+                            No reports or visits have been added yet.
                         </p>
                     </div>
                 ) : (

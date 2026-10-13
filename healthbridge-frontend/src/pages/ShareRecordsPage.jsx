@@ -15,6 +15,7 @@ function ShareRecordsPage() {
 
     const [selectedRecordIds, setSelectedRecordIds] = useState([]);
     const [durationHours, setDurationHours] = useState(24);
+    const [authorizeConsultation, setAuthorizeConsultation] = useState(false);
 
     const [providerName, setProviderName] = useState("");
     const [providerFacility, setProviderFacility] = useState("");
@@ -94,8 +95,8 @@ function ShareRecordsPage() {
         setError("");
         setCreatedSession(null);
 
-        if (selectedRecordIds.length === 0) {
-            setError("Please select at least one medical record.");
+        if (!authorizeConsultation) {
+            setError("Confirm permission for the provider to add a consultation.");
             return;
         }
 
@@ -110,6 +111,7 @@ function ShareRecordsPage() {
             const response = await api.post("/sharing-sessions", {
                 healthProfileId: healthProfile.id,
                 medicalRecordIds: selectedRecordIds,
+                authorizeConsultation,
                 durationHours: Number(durationHours),
                 providerName: providerName.trim(),
                 providerFacility: providerFacility.trim(),
@@ -126,6 +128,7 @@ function ShareRecordsPage() {
             setProviderName("");
             setProviderFacility("");
             setProviderRegistration("");
+            setAuthorizeConsultation(false);
 
             await loadData();
         } catch (err) {
@@ -227,7 +230,7 @@ function ShareRecordsPage() {
                     </h2>
 
                     {records.length === 0 ? (
-                        <p>No medical records are currently available.</p>
+                        <p>No records yet. A consultation-only session will not disclose any medical records.</p>
                     ) : (
                         <div className="ui-recordList">
                             {records.map((record) => (
@@ -336,12 +339,18 @@ function ShareRecordsPage() {
                             </select>
                         </label>
 
+                        <label className="ui-label">
+                            <input type="checkbox" checked={authorizeConsultation}
+                                onChange={event => setAuthorizeConsultation(event.target.checked)} required />
+                            Authorize the provider to add a new consultation
+                        </label>
+
                         <button
                             type="submit"
                             className="primary-button"
                             disabled={
                                 creating ||
-                                selectedRecordIds.length === 0
+                                !authorizeConsultation
                             }
                         >
                             {creating

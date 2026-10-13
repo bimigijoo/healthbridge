@@ -19,6 +19,8 @@ for (const [key, value] of Object.entries(expected)) {
 }
 assert.ok(backend.command.includes("-Pmobile-e2e") && backend.command.includes("-Dspring-boot.run.profiles=mobile-e2e"));
 assert.ok(backend.command.includes("spring-boot:test-run"), "Live launcher must use the test runtime classpath");
+assert.ok(backend.command.includes("-Dhealthbridge.build.directory=target/live-e2e-build"),
+    "Live builds must not update the running application's target/classes");
 assert.equal(backend.url, "http://127.0.0.1:18080/api/auth/e2e-ready");
 assert.equal(frontend.url, origin);
 assert.equal(config.use.baseURL, origin);

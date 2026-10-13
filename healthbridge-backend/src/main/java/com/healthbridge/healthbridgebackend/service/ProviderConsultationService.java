@@ -34,6 +34,8 @@ public class ProviderConsultationService {
         // The session row lock also serializes revocation and concurrent retries across application instances.
         var session = sessions.findValidSessionForUpdate(code).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.FORBIDDEN, "Sharing access is invalid, expired, or revoked."));
+        // A session is a consultation capability: new grants require affirmative worker consent.
+        // Its record-read scope remains the explicit SharedRecord links, including an empty scope.
         String prefix = RECEIPT_PREFIX + UUID.fromString(requestId) + ":";
         var receipt = logs.findFirstBySharingSessionIdAndActionStartingWith(session.getId(), prefix);
         if (receipt.isPresent()) {

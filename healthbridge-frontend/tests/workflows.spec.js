@@ -12,8 +12,10 @@ async function authenticate(page, user = worker) {
     }, user);
 }
 
-async function mockApi(page, { missingProfile = false, fail = false } = {}) {
-    let documents = [{ id: 30, medicalRecordId: 20, fileName: "synthetic-report.pdf", fileType: "application/pdf" }];
+async function mockApi(page, { missingProfile = false, fail = false, emptyRecords = false } = {}) {
+    let hasProfile = !missingProfile;
+    let recordList = emptyRecords ? [] : [record];
+    let documents = emptyRecords ? [] : [{ id: 30, medicalRecordId: 20, fileName: "synthetic-report.pdf", fileType: "application/pdf" }];
     let sessions = [];
     let accounts = [{ ...worker, active: true }, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN", active: true }];
     await page.route("**/api/**", async route => {
@@ -24,12 +26,18 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
         if (fail) return json({ message: "Synthetic service unavailable" }, 503);
         if (path === "/auth/register") return json(worker, 201);
         if (path === "/auth/login") return json({ message: "Invalid email or password." }, 401);
-        if (path.startsWith("/health-profile/user/")) return missingProfile ? json({}, 404) : json(profile);
+        if (path.startsWith("/health-profile/user/")) return hasProfile ? json(profile) : json({}, 404);
+        if (path === "/health-profile" && method === "POST") { hasProfile = true; return json(profile, 201); }
         if (path.endsWith("/qr")) return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
-        if (path.startsWith("/medical-records/profile/")) return json([record]);
-        if (path.startsWith("/medical-documents/record/")) return json(documents);
+        if (path === "/medical-records" && method === "POST") {
+            const created = { id: 21, ...request.postDataJSON() };
+            recordList.push(created);
+            return json(created, 201);
+        }
+        if (path.startsWith("/medical-records/profile/")) return json(recordList);
+        if (path.startsWith("/medical-documents/record/")) return json(documents.filter(document => document.medicalRecordId === Number(path.split("/").pop())));
         if (path.startsWith("/medical-documents/upload/")) {
-            const document = { id: 31, medicalRecordId: 20, fileName: "new-report.pdf", fileType: "application/pdf" };
+            const document = { id: 31, medicalRecordId: Number(path.split("/").pop()), fileName: "new-report.pdf", fileType: "application/pdf" };
             documents.push(document);
             return json(document, 201);
         }
@@ -45,7 +53,8 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
             return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
         }
         if (path === "/sharing-sessions" && method === "POST") {
-            const session = { id: 40, accessToken: "DEMO-ACCESS", providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", createdAt: "2026-01-15T00:00:00", revoked: false };
+            const session = { id: 40, accessToken: "DEMO-ACCESS", medicalRecordIds: request.postDataJSON().medicalRecordIds,
+                providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", createdAt: "2026-01-15T00:00:00", revoked: false };
             sessions.push(session);
             return json(session, 201);
         }
@@ -56,7 +65,8 @@ async function mockApi(page, { missingProfile = false, fail = false } = {}) {
         if (path === "/provider-access" || path.startsWith("/provider-access/")) {
             if (sessions.some(session => session.revoked)) return json({ message: "Access expired or revoked." }, 403);
             if (method === "POST") return json(record, 201);
-            return json({ providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00", medicalRecords: [record] });
+            return json({ providerName: "Demo Provider", providerFacility: "Demo Clinic", expiresAt: "2099-01-01T00:00:00",
+                medicalRecords: sessions.length ? recordList.filter(record => sessions[0].medicalRecordIds.includes(record.id)) : recordList });
         }
         if (path === "/admin/users") return json(accounts);
         if (path.startsWith("/admin/users/") && method === "PATCH") {
@@ -124,6 +134,7 @@ test("documents and consent sharing remain usable", async ({ page }) => {
     await page.goto("/share-records");
     await page.getByRole("checkbox").first().check();
     await page.getByLabel("Provider Name", { exact: true }).fill("Demo Provider");
+    await page.getByLabel("Authorize the provider to add a new consultation").check();
     await page.getByRole("button", { name: "Create Temporary Access" }).click();
     await expect(page.getByRole("heading", { name: "Temporary Access Created" })).toBeVisible();
     await page.goto("/provider-access");
@@ -204,4 +215,51 @@ test("invalid, expired, and revoked QR access shows a clean error page", async (
         expect(new URL(page.url()).hash === "").toBe(true);
         await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toHaveCount(0);
     }
+});
+
+test("first worker creates a profile and uploads an independent report", async ({ page }, testInfo) => {
+    await mockApi(page, { missingProfile: true, emptyRecords: true });
+    await authenticate(page);
+    await page.goto("/health-profile");
+    await expect(page.getByLabel("Health ID", { exact: true })).toHaveCount(0);
+    const request = page.waitForRequest(request => new URL(request.url()).pathname === "/api/health-profile" && request.method() === "POST");
+    await page.getByRole("button", { name: "Create Health Profile", exact: true }).click();
+    expect((await request).postDataJSON().healthId).toBeUndefined();
+    await expect(page.getByText(profile.healthId, { exact: true })).toBeVisible();
+    await page.goto("/medical-records");
+    await expect(page.getByRole("heading", { name: "No medical records found" })).toBeVisible();
+    await page.getByRole("button", { name: "Add Medical Record", exact: true }).click();
+    await page.getByLabel("Record Type").selectOption("LAB_REPORT");
+    await page.getByLabel("Reason / Report Title").fill("Synthetic existing report");
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("new-record-form.png"), fullPage: true });
+    await page.route("**/api/medical-records", route => route.fulfill({ status: 503, json: { message: "Synthetic save unavailable" } }));
+    await page.getByRole("button", { name: "Save Medical Record" }).click();
+    await expect(page.getByRole("alert")).toContainText("Synthetic save unavailable");
+    await expect(page.getByLabel("Reason / Report Title")).toHaveValue("Synthetic existing report");
+    await page.unroute("**/api/medical-records");
+    await page.getByRole("button", { name: "Save Medical Record" }).click();
+    await expect(page.getByRole("status")).toContainText("record saved");
+    await page.locator('input[type="file"]').setInputFiles({ name: "new-report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 synthetic") });
+    await expect(page.getByText("new-report.pdf", { exact: true })).toBeVisible();
+    await checkLayout(page);
+});
+
+test("zero-record consultation consent is explicit and usable", async ({ page }) => {
+    await mockApi(page, { emptyRecords: true });
+    await authenticate(page);
+    await page.goto("/share-records");
+    await expect(page.getByRole("button", { name: "Create Temporary Access" })).toBeDisabled();
+    await page.getByLabel("Provider Name", { exact: true }).fill("Demo Provider");
+    await page.getByLabel("Authorize the provider to add a new consultation").check();
+    const request = page.waitForRequest(request => new URL(request.url()).pathname === "/api/sharing-sessions" && request.method() === "POST");
+    await page.getByRole("button", { name: "Create Temporary Access" }).click();
+    expect((await request).postDataJSON()).toMatchObject({ medicalRecordIds: [], authorizeConsultation: true });
+    await expect(page.getByAltText("Temporary provider access QR code")).toBeVisible();
+    await page.goto("/provider-access#access=DEMO-ACCESS");
+    await expect(page.getByText("No medical records were shared. This session authorizes a new consultation only.")).toBeVisible();
+    await page.getByLabel("Reason for Consultation").fill("Synthetic first visit");
+    await page.getByRole("button", { name: "Add Consultation", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("Consultation added successfully");
+    await checkLayout(page);
 });

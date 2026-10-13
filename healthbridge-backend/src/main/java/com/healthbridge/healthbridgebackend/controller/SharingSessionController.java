@@ -65,14 +65,14 @@ public class SharingSessionController {
             return ResponseEntity.badRequest().build();
         }
 
-        if (request.getMedicalRecordIds() == null
-                || request.getMedicalRecordIds().isEmpty()) {
+        if (request.getMedicalRecordIds() == null || !request.isAuthorizeConsultation()) {
             return ResponseEntity.badRequest().build();
         }
 
         List<MedicalRecord> medicalRecords = new ArrayList<>();
 
-        for (Long recordId : request.getMedicalRecordIds()) {
+        // An empty selection is a consultation-only capability, never a wildcard record grant.
+        for (Long recordId : request.getMedicalRecordIds().stream().distinct().toList()) {
 
             MedicalRecord medicalRecord = medicalRecordService
                     .findById(recordId)

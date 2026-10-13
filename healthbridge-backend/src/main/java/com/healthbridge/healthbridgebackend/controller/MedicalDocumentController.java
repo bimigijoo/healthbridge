@@ -16,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -80,11 +81,11 @@ public class MedicalDocumentController {
         currentUserService.assertProfileOwner(medicalRecord.getHealthProfile());
 
         if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a non-empty medical report.");
         }
 
         if (file.getSize() > MAX_FILE_SIZE_BYTES) {
-            return ResponseEntity.badRequest().build();
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Files must be no larger than 10 MB.");
         }
 
         String contentType = file.getContentType();
@@ -92,7 +93,7 @@ public class MedicalDocumentController {
         if (contentType == null
                 || !ALLOWED_CONTENT_TYPES.contains(
                 contentType.toLowerCase(Locale.ROOT))) {
-            return ResponseEntity.badRequest().build();
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a PDF, JPEG, PNG, or WebP report.");
         }
 
         try {
@@ -127,11 +128,11 @@ public class MedicalDocumentController {
             }
 
             if (!ALLOWED_EXTENSIONS.contains(extension)) {
-                return ResponseEntity.badRequest().build();
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose a PDF, JPEG, PNG, or WebP report.");
             }
 
             if (!matchesFileType(file, extension, contentType.toLowerCase(Locale.ROOT))) {
-                return ResponseEntity.badRequest().build();
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The report contents do not match its file type.");
             }
 
             String storedFileName =

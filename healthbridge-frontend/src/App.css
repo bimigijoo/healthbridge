@@ -92,6 +92,8 @@ label.ui-recordItem:has(input:checked) { border-color: #408c80; background: #eff
 .ui-accessBox { padding: 16px 0; border-top: 1px solid var(--border); }
 .ui-token { font-family: Consolas, monospace; word-break: break-all; background: #edf3f5; padding: 14px; margin: 12px 0; border-radius: 6px; }
 .sharing-qr { margin: 20px 0; }
+.record-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 600px) { .record-entry-grid { grid-template-columns: minmax(0, 1fr); } }
 .sharing-qr img { display: block; width: 280px; max-width: 100%; height: auto; aspect-ratio: 1; background: #fff; }
 .ui-profileSection { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 36px; }
 .ui-infoRow { display: flex; justify-content: space-between; gap: 20px; padding: 12px 0; border-bottom: 1px solid var(--border); }

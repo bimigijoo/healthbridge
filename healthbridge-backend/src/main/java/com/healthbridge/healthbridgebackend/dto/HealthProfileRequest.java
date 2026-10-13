@@ -1,6 +1,5 @@
 package com.healthbridge.healthbridgebackend.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
@@ -10,7 +9,6 @@ public class HealthProfileRequest {
     @NotNull
     private Long userId;
 
-    @NotBlank
     private String healthId;
 
     private LocalDate dateOfBirth;

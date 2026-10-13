@@ -64,10 +64,6 @@ public class HealthProfileController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
 
-        if (healthProfileService.existsByHealthId(request.getHealthId())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
         User user =
                 userService
                         .findById(request.getUserId())
@@ -80,7 +76,6 @@ public class HealthProfileController {
         HealthProfile profile = new HealthProfile();
 
         profile.setUser(user);
-        profile.setHealthId(request.getHealthId());
         profile.setDateOfBirth(request.getDateOfBirth());
         profile.setGender(request.getGender());
         profile.setBloodGroup(request.getBloodGroup());
