@@ -69,6 +69,8 @@ New sharing sessions require explicit `authorizeConsultation: true`. `medicalRec
 
 The authenticated passport reuses the allergy, existing-condition, and current-medication APIs. Its permanent HTTPS QR opens `/passport`, a public reference page with no database lookup or clinical information. Health ID inclusion is an explicit per-QR choice, off by default; a displayed reference is unverified and grants no permissions. Download QR, native Share Link (clipboard fallback), and Print Passport are available. The separate, expiring provider QR is still required for record access or consultation entry.
 
+Provider access is QR-first. New worker sessions display the QR before the sharing form; manual access codes remain in a fallback disclosure. The provider page clears displayed session data at expiry, but the backend still validates every read/write independently. The live HTTPS/H2 regression also checks concurrent identical consultation retries create exactly one record. Physical phone-camera recognition and public PostgreSQL deployment remain separate acceptance checks.
+
 ## Demo
 
 See [DEMO.md](DEMO.md) for a synthetic-data walkthrough and verification checklist. The project does not seed users, promote administrators, delete existing data, or publish patient records automatically.

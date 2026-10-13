@@ -224,6 +224,20 @@ function ShareRecordsPage() {
                     </div>
                 )}
 
+                {createdSession && isActive(createdSession) && (
+                    <section className="ui-section">
+                        <h2 className="ui-sectionTitle">Temporary Access Created</h2>
+                        <p className="ui-warning">Keep this QR private. Anyone holding it can use this temporary consent until expiration or revocation.</p>
+                        <SharingSessionQr key={createdSession.id} session={createdSession} />
+                        <p className="ui-recordDetails">Expires: {formatDate(createdSession.expiresAtUtc || createdSession.expiresAt)}</p>
+                        <button type="button" className="danger-button"
+                            onClick={() => void revokeSession(createdSession.id)}>Revoke Access</button>
+                        <details className="provider-code-fallback"><summary>Manual access code</summary>
+                            <div className="ui-token">{createdSession.accessToken}</div>
+                        </details>
+                    </section>
+                )}
+
                 <section className="ui-section">
                     <h2 className="ui-sectionTitle">
                         Select Medical Records
@@ -360,38 +374,6 @@ function ShareRecordsPage() {
                     </form>
                 </section>
 
-                {createdSession && isActive(createdSession) && (
-                    <section className="ui-section">
-                        <h2 className="ui-sectionTitle">
-                            Temporary Access Created
-                        </h2>
-
-                        <p className="ui-warning">
-                            Keep this access code private. Anyone who has the
-                            temporary access code may be able to access the
-                            records during the active sharing period.
-                        </p>
-
-                        <SharingSessionQr key={createdSession.id} session={createdSession} />
-                        <div className="ui-accessBox">
-                            <div>
-                                <strong>Access Code</strong>
-                            </div>
-
-                            <div className="ui-token">
-                                {createdSession.accessToken}
-                            </div>
-
-                            <div className="ui-recordDetails">
-                                Expires:{" "}
-                                {formatDate(createdSession.expiresAtUtc || createdSession.expiresAt)}
-                            </div>
-                        </div>
-                        <button type="button" className="danger-button"
-                            onClick={() => void revokeSession(createdSession.id)}>Revoke Access</button>
-                    </section>
-                )}
-
                 <section className="ui-section">
                     <h2 className="ui-sectionTitle">
                         Sharing History
@@ -441,11 +423,11 @@ function ShareRecordsPage() {
                                                 <div className="ui-accessBox">
                                                     {createdSession?.id !== session.id &&
                                                         <SharingSessionQr key={session.id} session={session} />}
-                                                    <strong>Access Code</strong>
-
+                                                    <details className="provider-code-fallback"><summary>Manual access code</summary>
                                                     <div className="ui-token">
                                                         {session.accessToken}
                                                     </div>
+                                                    </details>
                                                 </div>
                                             )}
 

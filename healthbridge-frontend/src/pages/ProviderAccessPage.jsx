@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import providerApi from "../services/providerApi";
 import PageStatus from "../components/PageStatus";
+import { QrCode } from "lucide-react";
 
 function localDate() {
     const date = new Date();
@@ -95,6 +96,31 @@ function ProviderAccessPage() {
             controller?.abort();
         };
     }, [initialCode, loadAccess]);
+
+    const expiresAt = accessData?.expiresAt;
+    useEffect(() => {
+        if (!expiresAt) return;
+        const remaining = new Date(expiresAt).getTime() - Date.now();
+        if (!Number.isFinite(remaining)) return;
+        let timer;
+        // Browser timers use signed 32-bit delays; recheck far-future expiry dates in bounded chunks.
+        const expire = () => {
+            const remaining = new Date(expiresAt).getTime() - Date.now();
+            if (remaining > 0) {
+                timer = window.setTimeout(expire, Math.min(remaining, 2147483647));
+                return;
+            }
+            accessGeneration.current++;
+            setAccessData(null);
+            setAccessToken("");
+            setLoading(false);
+            setMessage("");
+            setError("This sharing session has expired. New worker authorization is required.");
+            submission.current = null;
+        };
+        timer = window.setTimeout(expire, Math.min(Math.max(0, remaining), 2147483647));
+        return () => window.clearTimeout(timer);
+    }, [expiresAt]);
 
     const accessRecords = event => {
         event.preventDefault();
@@ -203,16 +229,17 @@ function ProviderAccessPage() {
                 {!accessData && loading && <PageStatus loading title="Validating temporary access" />}
                 {!accessData && !loading && (
                     <section className="ui-section">
+                        <QrCode size={36} aria-hidden="true" />
                         <h2 className="ui-sectionTitle">
-                            Enter Temporary Access Code
+                            Worker Authorization
                         </h2>
 
                         <p className="ui-description">
-                            Enter the temporary access code provided by the
-                            worker. No permanent HealthBridge provider account
-                            is required.
+                            Access requires the worker's temporary consent QR. No provider account is required.
                         </p>
 
+                        <details open={!!error} className="provider-code-fallback">
+                        <summary>Manual access code</summary>
                         <form onSubmit={accessRecords}>
                             <label className="ui-label">
                                 Temporary Access Code
@@ -240,6 +267,7 @@ function ProviderAccessPage() {
                                     : "Access Shared Records"}
                             </button>
                         </form>
+                        </details>
                     </section>
                 )}
 

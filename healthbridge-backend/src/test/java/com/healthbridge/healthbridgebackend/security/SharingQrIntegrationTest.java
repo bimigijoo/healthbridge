@@ -172,6 +172,20 @@ class SharingQrIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test void malformedRequestIdCannotCreateConsultation() throws Exception {
+        long before = records.count();
+        submit("not-a-uuid", "Synthetic visit").andExpect(status().isBadRequest());
+        assertEquals(before, records.count());
+    }
+
+    @Test void deactivatedWorkerCannotLeaveUsableProviderConsent() throws Exception {
+        worker.setActive(false);
+        users.saveAndFlush(worker);
+        mvc.perform(get("/api/provider-access").header("X-HealthBridge-Access-Code", session.getAccessToken()))
+                .andExpect(status().isForbidden());
+        submit(UUID.randomUUID().toString(), "Synthetic visit").andExpect(status().isForbidden());
+    }
+
     private org.springframework.test.web.servlet.ResultActions submit(String key, String reason) throws Exception {
         return mvc.perform(post("/api/provider-access/consultation")
                 .header("X-HealthBridge-Access-Code", session.getAccessToken()).header("Idempotency-Key", key)

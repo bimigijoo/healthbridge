@@ -92,6 +92,8 @@ label.ui-recordItem:has(input:checked) { border-color: #408c80; background: #eff
 .ui-accessBox { padding: 16px 0; border-top: 1px solid var(--border); }
 .ui-token { font-family: Consolas, monospace; word-break: break-all; background: #edf3f5; padding: 14px; margin: 12px 0; border-radius: 6px; }
 .sharing-qr { margin: 20px 0; }
+.provider-code-fallback { margin-top: 20px; }
+.provider-code-fallback summary { cursor: pointer; color: var(--teal); font-weight: 600; padding: 10px 0; }
 .public-passport-reference, .ui-infoRow span, .profile-grid strong { overflow-wrap: anywhere; min-width: 0; }
 .passport-clinical ul { list-style: none; padding: 0; margin: 0; }
 .passport-clinical .ui-recordItem { overflow-wrap: anywhere; }

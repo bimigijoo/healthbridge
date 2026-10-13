@@ -78,10 +78,19 @@ test("real HTTPS QR access, consultation persistence, timeline, and revocation",
         expect(await provider.locator(".ui-recordItem").count()).toBe(1);
         await expect(provider.getByLabel("Temporary Access Code")).toHaveCount(0);
         await provider.getByLabel("Reason for Consultation").fill("Synthetic QR consultation saved by provider");
+        const submittedRequest = provider.waitForRequest(request => new URL(request.url()).pathname === "/api/provider-access/consultation" && request.method() === "POST");
         await provider.getByRole("button", { name: "Add Consultation", exact: true }).click();
         await expect(provider.getByRole("status")).toContainText("Consultation added successfully");
         await expect(provider.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
         expect(await provider.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        const original = await submittedRequest;
+        const retries = await Promise.all([1, 2].map(() => provider.request.post("/api/provider-access/consultation", {
+            headers: { "X-HealthBridge-Access-Code": original.headers()["x-healthbridge-access-code"],
+                "Idempotency-Key": original.headers()["idempotency-key"] }, data: original.postDataJSON(),
+        })));
+        for (const retry of retries) expect(retry.status()).toBe(201);
+        const saved = await page.request.get(`/api/medical-records/profile/${profile.id}`, { headers });
+        expect((await saved.json()).filter(record => record.reason === "Synthetic QR consultation saved by provider").length).toBe(1);
         await page.goto("/health-timeline");
         await expect(page.locator(".ui-timeline")).toContainText("Synthetic QR consultation saved by provider");
         await page.goto("/share-records");

@@ -143,6 +143,7 @@ test("documents and consent sharing remain usable", async ({ page }) => {
     await page.getByRole("button", { name: "Create Temporary Access" }).click();
     await expect(page.getByRole("heading", { name: "Temporary Access Created" })).toBeVisible();
     await page.goto("/provider-access");
+    await page.getByText("Manual access code", { exact: true }).click();
     await page.getByLabel("Temporary Access Code", { exact: true }).fill("DEMO-ACCESS");
     await page.getByRole("button", { name: "Access Shared Records" }).click();
     await expect(page.getByRole("heading", { name: "Shared Medical Records" })).toBeVisible();
@@ -155,6 +156,7 @@ test("documents and consent sharing remain usable", async ({ page }) => {
     await page.getByRole("button", { name: "Revoke" }).last().click();
     await expect(page.locator(".ui-status")).toContainText("Revoked");
     await page.goto("/provider-access");
+    await page.getByText("Manual access code", { exact: true }).click();
     await page.getByLabel("Temporary Access Code", { exact: true }).fill("DEMO-ACCESS");
     await page.getByRole("button", { name: "Access Shared Records" }).click();
     await expect(page.getByRole("alert")).toContainText("revoked");
@@ -323,4 +325,21 @@ test("passport empty clinical sections and unavailable QR stay distinct", async 
     await page.reload();
     await expect(page.getByText("Allergies could not be loaded.", { exact: false })).toBeVisible();
     await expect(page.getByText("No allergies recorded.")).toHaveCount(0);
+});
+
+test("provider begins with QR authorization and clears access when the session expires", async ({ page }) => {
+    await mockApi(page);
+    await page.clock.install({ time: new Date("2026-01-15T00:00:00Z") });
+    await page.goto("/provider-access");
+    await expect(page.getByRole("heading", { name: "Worker Authorization" })).toBeVisible();
+    await expect(page.getByLabel("Temporary Access Code")).not.toBeVisible();
+    await page.route("**/api/provider-access", route => route.fulfill({ json: { providerName: "Demo Provider",
+        expiresAt: "2026-01-15T00:00:05Z", medicalRecords: [record] } }));
+    await page.goto("/provider-access#access=DEMO-ACCESS");
+    await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toBeVisible();
+    await page.clock.fastForward(6000);
+    await expect(page.getByRole("alert")).toContainText("session has expired");
+    await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Temporary Access Code")).toHaveValue("");
+    await expect(page.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
 });
