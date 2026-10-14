@@ -218,6 +218,55 @@ test("camera-style QR link opens access automatically and removes the URL creden
     await expect(page.getByLabel("Temporary Access Code")).toHaveCount(0);
 });
 
+test("login offers anonymous healthcare professional access", async ({ page }, testInfo) => {
+    await mockApi(page);
+    await page.goto("/login");
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("provider-login-entry.png"), fullPage: true });
+    await page.getByRole("link", { name: "Healthcare Professional - Access Shared Records" }).click();
+    await expect(page).toHaveURL(/provider-access$/);
+    await expect(page.getByRole("heading", { name: "Worker Authorization" })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem("healthbridge_token"))).toBeNull();
+    await checkLayout(page);
+});
+
+test("sharing QR retries without creating another consent session", async ({ page }) => {
+    await mockApi(page);
+    await authenticate(page);
+    let qrAttempts = 0;
+    let sessionsCreated = 0;
+    page.on("request", request => {
+        if (request.method() === "POST" && new URL(request.url()).pathname === "/api/sharing-sessions") sessionsCreated++;
+    });
+    await page.route("**/api/sharing-sessions/*/qr", route => {
+        qrAttempts++;
+        return qrAttempts === 1 ? route.fulfill({ status: 503, json: { message: "Unconfigured HTTPS origin" } })
+            : route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
+    });
+    await page.goto("/share-records");
+    await page.getByLabel("Provider Name", { exact: true }).fill("Demo Provider");
+    await page.getByLabel("Authorize the provider to add a new consultation").check();
+    await page.getByRole("button", { name: "Create Temporary Access" }).click();
+    await expect(page.getByRole("alert")).toContainText("public HTTPS");
+    await page.getByRole("button", { name: "Retry sharing QR" }).click();
+    await expect(page.getByAltText("Temporary provider access QR code")).toBeVisible();
+    expect(qrAttempts).toBe(2);
+    expect(sessionsCreated).toBe(1);
+});
+
+test("provider recheck removes records and consultation after revocation", async ({ page }) => {
+    await mockApi(page);
+    await page.goto("/provider-access#access=DEMO-ACCESS");
+    await expect(page.getByRole("heading", { name: "Shared Medical Records", exact: true })).toBeVisible();
+    await page.route("**/api/provider-access", route => route.fulfill({ status: 403, json: { message: "Access expired or revoked." } }));
+    await page.getByRole("button", { name: "Recheck access" }).click();
+    await expect(page.getByRole("alert")).toContainText("revoked");
+    await expect(page.locator(".ui-recordList")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Temporary Access Code")).toHaveValue("");
+    expect(await page.evaluate(() => Object.keys(localStorage).length + Object.keys(sessionStorage).length)).toBe(0);
+});
+
 test("invalid, expired, and revoked QR access shows a clean error page", async ({ page }) => {
     await page.route("**/api/**", route => route.fulfill({ status: 403,
         json: { message: "Sharing access is invalid, expired, or revoked." } }));

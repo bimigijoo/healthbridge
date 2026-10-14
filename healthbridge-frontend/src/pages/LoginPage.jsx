@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Stethoscope } from "lucide-react";
 import { useAuth } from "../context/useAuth";
 
 function LoginPage() {
@@ -147,6 +148,11 @@ function LoginPage() {
                             : "Sign In"}
                     </button>
                 </form>
+
+                <Link to="/provider-access" className="secondary-button provider-entry">
+                    <Stethoscope size={20} aria-hidden="true" />
+                    <span>Healthcare Professional - Access Shared Records</span>
+                </Link>
 
                 <div className="auth-footer">
                     <p>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import providerApi from "../services/providerApi";
 import PageStatus from "../components/PageStatus";
-import { QrCode } from "lucide-react";
+import { QrCode, RefreshCw } from "lucide-react";
 
 function localDate() {
     const date = new Date();
@@ -65,6 +65,7 @@ function ProviderAccessPage() {
             setMessage("Authorized medical records loaded successfully.");
         } catch (err) {
             if (signal?.aborted || generation !== accessGeneration.current) return;
+            if (err.response?.status === 403) setAccessToken("");
             setError(
                 err.response?.data?.message ||
                 "Unable to access the shared medical records."
@@ -277,6 +278,11 @@ function ProviderAccessPage() {
                             <h2 className="ui-sectionTitle">
                                 Authorized Access
                             </h2>
+
+                            <button type="button" className="secondary-button" disabled={loading}
+                                onClick={() => void loadAccess(accessToken)}>
+                                <RefreshCw size={16} aria-hidden="true" /> Recheck access
+                            </button>
 
                             <div className="ui-infoGrid">
                                 <div>
