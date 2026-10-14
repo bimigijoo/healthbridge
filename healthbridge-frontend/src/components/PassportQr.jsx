@@ -46,13 +46,13 @@ export default function PassportQr({ profileId }) {
     };
 
     return <div className="ui-qrSection">
-        <h2 className="ui-sectionTitle">Passport Identity QR</h2>
-        {image ? <img src={image} alt="HealthBridge Health ID QR code" className="ui-qrImage" width="400" height="400" />
+        <h2 className="ui-sectionTitle">Permanent Passport QR</h2>
+        {image ? <img src={image} alt="HealthBridge permanent passport reference QR" className="ui-qrImage" width="400" height="400" />
             : error ? <p role="alert">{error}</p> : <p role="status">Loading passport QR...</p>}
         <label className="ui-label passport-controls"><input type="checkbox" checked={includeReference} onChange={event => {
             setImage(""); setLink(""); setError(""); setMessage(""); setIncludeReference(event.target.checked);
         }} /> Include Health ID in public QR</label>
-        <p className="ui-qrDescription">Public QR: no name, medical information, or record access. Optional identity reference only.</p>
+        <p className="ui-qrDescription">Permanent reference only: no name, medical information, or record access. Medical records require a separate temporary consent QR.</p>
         <div className="passport-controls document-actions">
             <a className="secondary-button" href={image || undefined} download="healthbridge-passport-qr.png"
                 aria-disabled={!image} onClick={event => { if (!image) event.preventDefault(); }}>

@@ -111,6 +111,18 @@ class SharingQrIntegrationTest {
                 .andExpect(status().isForbidden());
     }
 
+    @Test void passportReferenceCannotAuthorizePrivateClinicalApis() throws Exception {
+        for (String path : new String[]{"/api/health-profile/" + profile.getId() + "/qr",
+                "/api/health-profile/user/" + worker.getId(),
+                "/api/allergies/profile/" + profile.getId(),
+                "/api/existing-conditions/profile/" + profile.getId(),
+                "/api/current-medications/profile/" + profile.getId(),
+                "/api/medical-records/profile/" + profile.getId()}) {
+            mvc.perform(get(path).param("healthId", profile.getHealthId()))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
     @Test
     void invalidExpiredAndRevokedCodesCannotReadOrSubmit() throws Exception {
         mvc.perform(get("/api/provider-access").header("X-HealthBridge-Access-Code", "invalid-synthetic"))

@@ -383,6 +383,41 @@ test("passport empty clinical sections and unavailable QR stay distinct", async 
     await expect(page.getByText("No allergies recorded.")).toHaveCount(0);
 });
 
+test("anonymous passport reference never requests private data", async ({ page }) => {
+    const apiCalls = [];
+    page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) apiCalls.push(request.url()); });
+    await page.route("**/api/**", route => route.fulfill({ status: 401 }));
+    await page.goto("/passport#healthId=HB-SYNTHETIC-REFERENCE");
+    await expect(page.getByRole("heading", { name: "HealthBridge Passport Reference" })).toBeVisible();
+    await expect(page.getByText("Identity is not verified by this QR.", { exact: false })).toBeVisible();
+    expect(new URL(page.url()).hash).toBe("");
+    await expect(page.getByRole("navigation", { name: "Main navigation" })).toHaveCount(0);
+    await checkLayout(page);
+    expect(apiCalls).toEqual([]);
+    await page.goto("/health-passport");
+    await expect(page).toHaveURL(/login$/);
+    expect(apiCalls).toEqual([]);
+});
+
+test("passport QR retry preserves clinical summary and restores download", async ({ page }) => {
+    await mockApi(page);
+    await authenticate(page);
+    let attempts = 0;
+    await page.route("**/api/health-profile/*/qr?*", route => ++attempts === 1
+        ? route.fulfill({ status: 503, json: { message: "Unconfigured origin" } })
+        : route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") }));
+    await page.goto("/health-passport");
+    await expect(page.getByRole("alert")).toContainText("public HTTPS");
+    await expect(page.getByText("Synthetic allergy", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Retry passport QR" }).click();
+    await expect(page.getByAltText("HealthBridge permanent passport reference QR")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Permanent Passport QR" })).toBeVisible();
+    const download = page.waitForEvent("download");
+    await page.getByRole("link", { name: "Download QR" }).click();
+    expect((await download).suggestedFilename()).toBe("healthbridge-passport-qr.png");
+    expect(attempts).toBe(2);
+});
+
 test("provider begins with QR authorization and clears access when the session expires", async ({ page }) => {
     await mockApi(page);
     await page.clock.install({ time: new Date("2026-01-15T00:00:00Z") });

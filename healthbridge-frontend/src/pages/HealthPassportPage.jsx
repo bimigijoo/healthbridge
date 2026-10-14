@@ -152,7 +152,7 @@ function HealthPassportPage() {
                             </div>
                         </div>
 
-                        <PassportQr profileId={healthProfile.id} />
+                        <PassportQr key={healthProfile.id} profileId={healthProfile.id} />
                     </div>
                 </section>
 

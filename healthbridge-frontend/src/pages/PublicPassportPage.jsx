@@ -19,6 +19,7 @@ export default function PublicPassportPage() {
             <h2 className="ui-sectionTitle">Health information is private</h2>
             {reference && <p className="public-passport-reference"><strong>Unverified Health ID reference:</strong> {reference}</p>}
             <p>This identity link does not authorize access to a worker's profile or medical records.</p>
+            <p>Identity is not verified by this QR. No private health information is available on this public page.</p>
             <p>Providers need the worker's separate, temporary consent QR to view authorized records or add a consultation.</p>
             <Link to="/provider-access" className="secondary-button">Provider Access</Link>
         </section>
