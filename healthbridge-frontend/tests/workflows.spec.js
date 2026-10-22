@@ -4,6 +4,7 @@ import { test, expect } from "@playwright/test";
 const worker = { id: 1, name: "Demo Worker", email: "worker@example.test", role: "WORKER" };
 const profile = { id: 10, healthId: "HB-DEMO-001", bloodGroup: "O+", preferredLanguage: "English" };
 const record = { id: 20, healthProfileId: 10, recordType: "CONSULTATION", recordDate: "2026-01-15", providerName: "Demo Provider", providerFacility: "Demo Clinic", reason: "Synthetic demonstration record" };
+const passportReference = "a".repeat(43);
 
 async function authenticate(page, user = worker) {
     await page.addInitScript(userData => {
@@ -17,6 +18,14 @@ async function mockApi(page, { missingProfile = false, fail = false, emptyRecord
     let recordList = emptyRecords ? [] : [record];
     let documents = emptyRecords ? [] : [{ id: 30, medicalRecordId: 20, fileName: "synthetic-report.pdf", fileType: "application/pdf" }];
     let sessions = [];
+    let preferences = { enabled: false, bloodGroup: false, emergencyContact: false, allergies: false,
+        conditions: false, medications: false, preferredLanguage: false };
+    let reference = passportReference;
+    const clinical = {
+        allergies: emptyClinical ? [] : [{ id: 1, allergen: "Synthetic allergy", reaction: "Synthetic reaction" }],
+        "existing-conditions": emptyClinical ? [] : [{ id: 2, conditionName: "Synthetic chronic condition" }],
+        "current-medications": emptyClinical ? [] : [{ id: 3, medicationName: "Synthetic medication", dosage: "Synthetic dose" }],
+    };
     let accounts = [{ ...worker, active: true }, { id: 2, name: "Demo Admin", email: "admin@example.test", role: "ADMIN", active: true }];
     await page.route("**/api/**", async route => {
         const request = route.request();
@@ -26,13 +35,35 @@ async function mockApi(page, { missingProfile = false, fail = false, emptyRecord
         if (fail) return json({ message: "Synthetic service unavailable" }, 503);
         if (path === "/auth/register") return json(worker, 201);
         if (path === "/auth/login") return json({ message: "Invalid email or password." }, 401);
+        if (path === "/emergency-passport/profile/10/link") return json({ url: "https://demo.example.test/passport#reference=" + reference });
+        if (path === "/emergency-passport/profile/10/regenerate") { reference = "b".repeat(43); return json(preferences); }
+        if (path === "/emergency-passport/profile/10") {
+            if (method === "PUT") preferences = request.postDataJSON();
+            return json(preferences);
+        }
+        if (path === "/public/emergency-passport") {
+            if (!preferences.enabled || request.headers()["x-healthbridge-passport-reference"] !== reference) return json({}, 404);
+            const data = {};
+            if (preferences.bloodGroup) data.bloodGroup = profile.bloodGroup;
+            if (preferences.preferredLanguage) data.preferredLanguage = profile.preferredLanguage;
+            if (preferences.emergencyContact) data.emergencyContact = "";
+            if (preferences.allergies) data.allergies = clinical.allergies;
+            if (preferences.conditions) data.conditions = clinical["existing-conditions"].map(item => item.conditionName);
+            if (preferences.medications) data.medications = clinical["current-medications"];
+            return json(data);
+        }
         if (path.startsWith("/health-profile/user/")) return hasProfile ? json(profile) : json({}, 404);
         if (path === "/health-profile" && method === "POST") { hasProfile = true; return json(profile, 201); }
         if (path.endsWith("/passport-link")) return json({ url: "https://demo.example.test/passport" +
             (new URL(request.url()).searchParams.get("includeReference") === "true" ? "#healthId=HB-DEMO-001" : "") });
-        if (path.startsWith("/allergies/profile/")) return json(emptyClinical ? [] : [{ id: 1, allergen: "Synthetic allergy", reaction: "Synthetic reaction" }]);
-        if (path.startsWith("/existing-conditions/profile/")) return json(emptyClinical ? [] : [{ id: 2, conditionName: "Synthetic chronic condition" }]);
-        if (path.startsWith("/current-medications/profile/")) return json(emptyClinical ? [] : [{ id: 3, medicationName: "Synthetic medication", dosage: "Synthetic dose" }]);
+        const clinicalEndpoint = path.split("/")[1];
+        if (clinicalEndpoint in clinical) {
+            if (method === "POST") { const item = { id: 100, ...request.postDataJSON() }; clinical[clinicalEndpoint].push(item); return json(item, 201); }
+            if (method === "PUT") { const item = { id: Number(path.split("/").pop()), ...request.postDataJSON() };
+                clinical[clinicalEndpoint] = clinical[clinicalEndpoint].map(value => value.id === item.id ? item : value); return json(item); }
+            if (method === "DELETE") { clinical[clinicalEndpoint] = clinical[clinicalEndpoint].filter(value => value.id !== Number(path.split("/").pop())); return route.fulfill({ status: 204 }); }
+            return json(clinical[clinicalEndpoint]);
+        }
         if (path.endsWith("/qr")) return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") });
         if (path === "/medical-records" && method === "POST") {
             const created = { id: 21, ...request.postDataJSON() };
@@ -338,14 +369,10 @@ test("private passport reuses clinical data and its public reference exposes non
     for (const text of ["Synthetic allergy", "Synthetic chronic condition", "Synthetic medication"]) {
         await expect(page.getByText(text, { exact: true })).toBeVisible();
     }
-    await expect(page.getByLabel("Include Health ID in public QR")).not.toBeChecked();
+    await expect(page.getByLabel("Enable public emergency sharing")).not.toBeChecked();
     await expect(page.getByRole("button", { name: "Share Link" })).toBeEnabled();
     await page.getByRole("button", { name: "Share Link" }).click();
-    expect(await page.evaluate(() => window.passportSharedUrl)).toBe("https://demo.example.test/passport");
-    await page.getByLabel("Include Health ID in public QR").check();
-    await expect(page.getByRole("button", { name: "Share Link" })).toBeEnabled();
-    await page.getByRole("button", { name: "Share Link" }).click();
-    expect(await page.evaluate(() => window.passportSharedUrl)).toBe("https://demo.example.test/passport#healthId=HB-DEMO-001");
+    expect(await page.evaluate(() => window.passportSharedUrl)).toBe("https://demo.example.test/passport#reference=" + passportReference);
     await page.getByRole("button", { name: "Print Passport" }).click();
     expect(await page.evaluate(() => window.passportPrinted)).toBe(true);
     const download = page.waitForEvent("download");
@@ -366,10 +393,95 @@ test("private passport reuses clinical data and its public reference exposes non
     await page.screenshot({ path: testInfo.outputPath("public-passport.png"), fullPage: true });
 });
 
+test("saved emergency preferences persist, revoke, and rotate the public reference", async ({ page }, testInfo) => {
+    await mockApi(page);
+    await authenticate(page);
+    page.on("dialog", dialog => dialog.accept());
+    await page.goto("/health-passport");
+    await expect(page.getByLabel("Enable public emergency sharing")).not.toBeChecked();
+    await page.getByLabel("Enable public emergency sharing").check();
+    await page.getByLabel("Allergies and reactions").check();
+    await page.getByRole("button", { name: "Save Emergency Preferences", exact: true }).click();
+    await expect(page.getByRole("status")).toContainText("preferences saved");
+    await page.reload();
+    await expect(page.getByLabel("Enable public emergency sharing")).toBeChecked();
+    await expect(page.getByLabel("Allergies and reactions")).toBeChecked();
+    const requested = page.waitForRequest(request => new URL(request.url()).pathname === "/api/public/emergency-passport");
+    await page.goto("/passport#reference=" + passportReference);
+    const request = await requested;
+    await expect(page.getByRole("heading", { name: "Emergency Health Passport", exact: true })).toBeVisible();
+    await expect(page.getByText("Synthetic allergy: Synthetic reaction", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Current Medications", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
+    expect(request.headers().authorization).toBeUndefined();
+    expect(new URL(request.url()).search).toBe("");
+    expect(new URL(page.url()).hash).toBe("");
+    await checkLayout(page);
+    await page.screenshot({ path: testInfo.outputPath("emergency-public.png"), fullPage: true });
+    await page.goto("/health-passport");
+    await page.getByRole("button", { name: "Revoke Public Access" }).click();
+    await expect(page.getByRole("status")).toContainText("disabled");
+    await page.goto("/passport#reference=" + passportReference);
+    await expect(page.getByRole("heading", { name: "Health information is private" })).toBeVisible();
+    await page.goto("/health-passport");
+    await page.getByLabel("Enable public emergency sharing").check();
+    await page.getByRole("button", { name: "Save Emergency Preferences" }).click();
+    await expect(page.getByRole("status")).toContainText("preferences saved");
+    await page.getByRole("button", { name: "Replace Permanent Reference" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "reference replaced" })).toBeVisible();
+    await page.goto("/passport#reference=" + passportReference);
+    await expect(page.getByRole("heading", { name: "Health information is private" })).toBeVisible();
+    await page.goto("/passport#reference=" + "b".repeat(43));
+    await expect(page.getByRole("heading", { name: "Emergency Health Passport", exact: true })).toBeVisible();
+});
+
+test("worker can add edit and delete all three clinical categories", async ({ page }) => {
+    await mockApi(page, { emptyClinical: true });
+    await authenticate(page);
+    page.on("dialog", dialog => dialog.accept());
+    await page.goto("/health-passport");
+    for (const [section, item, field] of [["Allergies", "Allergy", "Allergen"],
+        ["Chronic & Existing Conditions", "Condition", "Condition name"], ["Current Medications", "Medication", "Medication name"]]) {
+        const region = page.getByRole("region", { name: section, exact: true });
+        await region.getByRole("button", { name: "Add " + item, exact: true }).click();
+        await region.getByLabel(field, { exact: true }).fill("Added synthetic " + item);
+        await region.getByRole("button", { name: "Save " + item, exact: true }).click();
+        await expect(region.getByText("Added synthetic " + item, { exact: true })).toBeVisible();
+        await region.getByRole("button", { name: "Edit " + item, exact: true }).click();
+        await region.getByLabel(field, { exact: true }).fill("Edited synthetic " + item);
+        await region.getByRole("button", { name: "Save " + item, exact: true }).click();
+        await expect(region.getByText("Edited synthetic " + item, { exact: true })).toBeVisible();
+        await region.getByRole("button", { name: "Delete " + item, exact: true }).click();
+        await expect(region.getByText("Edited synthetic " + item, { exact: true })).toHaveCount(0);
+        await checkLayout(page);
+    }
+});
+
+test("public emergency error clears data and supports retry without storing the reference", async ({ page }) => {
+    let available = true;
+    await page.route("**/api/**", route => available
+        ? route.fulfill({ json: { bloodGroup: "O+" } })
+        : route.fulfill({ status: 503 }));
+    await page.goto("/passport#reference=" + passportReference);
+    await expect(page.getByText("O+", { exact: true })).toBeVisible();
+    const rescan = page.waitForResponse(response => new URL(response.url()).pathname === "/api/public/emergency-passport");
+    await page.goto("/passport#reference=" + passportReference);
+    expect((await rescan).status()).toBe(200);
+    await expect(page.getByText("O+", { exact: true })).toBeVisible();
+    available = false;
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.getByRole("alert")).toContainText("could not be verified");
+    await expect(page.getByText("O+", { exact: true })).toHaveCount(0);
+    available = true;
+    await page.getByRole("button", { name: "Retry Emergency Information" }).click();
+    await expect(page.getByText("O+", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => Object.keys(localStorage).length + Object.keys(sessionStorage).length)).toBe(0);
+});
+
 test("passport empty clinical sections and unavailable QR stay distinct", async ({ page }) => {
     await mockApi(page, { emptyClinical: true });
     await authenticate(page);
-    await page.route("**/api/health-profile/*/qr?*", route => route.fulfill({ status: 503, json: { message: "Unconfigured public origin" } }));
+    await page.route("**/api/emergency-passport/profile/*/qr", route => route.fulfill({ status: 503, json: { message: "Unconfigured public origin" } }));
     await page.goto("/health-passport");
     await expect(page.getByText("No allergies recorded.")).toBeVisible();
     await expect(page.getByText("No conditions recorded.")).toBeVisible();
@@ -403,7 +515,7 @@ test("passport QR retry preserves clinical summary and restores download", async
     await mockApi(page);
     await authenticate(page);
     let attempts = 0;
-    await page.route("**/api/health-profile/*/qr?*", route => ++attempts === 1
+    await page.route("**/api/emergency-passport/profile/*/qr", route => ++attempts === 1
         ? route.fulfill({ status: 503, json: { message: "Unconfigured origin" } })
         : route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9sAAAAASUVORK5CYII=", "base64") }));
     await page.goto("/health-passport");

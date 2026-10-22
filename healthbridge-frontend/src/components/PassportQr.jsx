@@ -3,7 +3,6 @@ import { Download, RefreshCw, Share2 } from "lucide-react";
 import api from "../services/api";
 
 export default function PassportQr({ profileId }) {
-    const [includeReference, setIncludeReference] = useState(false);
     const [image, setImage] = useState("");
     const [link, setLink] = useState("");
     const [error, setError] = useState("");
@@ -14,10 +13,10 @@ export default function PassportQr({ profileId }) {
         let objectUrl;
         const load = async () => {
             try {
-                const options = { params: { includeReference }, signal: controller.signal };
+                const options = { signal: controller.signal };
                 const [qr, reference] = await Promise.all([
-                    api.get(`/health-profile/${profileId}/qr`, { ...options, responseType: "blob" }),
-                    api.get(`/health-profile/${profileId}/passport-link`, options),
+                    api.get(`/emergency-passport/profile/${profileId}/qr`, { ...options, responseType: "blob" }),
+                    api.get(`/emergency-passport/profile/${profileId}/link`, options),
                 ]);
                 if (controller.signal.aborted) return;
                 objectUrl = URL.createObjectURL(qr.data);
@@ -32,12 +31,12 @@ export default function PassportQr({ profileId }) {
         };
         void load();
         return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
-    }, [profileId, includeReference, attempt]);
+    }, [profileId, attempt]);
 
     const share = async () => {
         setMessage("");
         try {
-            if (navigator.share) await navigator.share({ title: "HealthBridge passport reference", url: link });
+            if (navigator.share) await navigator.share({ title: "HealthBridge emergency passport", url: link });
             else {
                 await navigator.clipboard.writeText(link);
                 setMessage("Passport reference link copied.");
@@ -49,10 +48,7 @@ export default function PassportQr({ profileId }) {
         <h2 className="ui-sectionTitle">Permanent Passport QR</h2>
         {image ? <img src={image} alt="HealthBridge permanent passport reference QR" className="ui-qrImage" width="400" height="400" />
             : error ? <p role="alert">{error}</p> : <p role="status">Loading passport QR...</p>}
-        <label className="ui-label passport-controls"><input type="checkbox" checked={includeReference} onChange={event => {
-            setImage(""); setLink(""); setError(""); setMessage(""); setIncludeReference(event.target.checked);
-        }} /> Include Health ID in public QR</label>
-        <p className="ui-qrDescription">Permanent reference only: no name, medical information, or record access. Medical records require a separate temporary consent QR.</p>
+        <p className="ui-qrDescription">Only saved Emergency Passport Settings control public emergency information. Full records and consultations still require a separate temporary consent QR.</p>
         <div className="passport-controls document-actions">
             <a className="secondary-button" href={image || undefined} download="healthbridge-passport-qr.png"
                 aria-disabled={!image} onClick={event => { if (!image) event.preventDefault(); }}>

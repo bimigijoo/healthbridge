@@ -86,6 +86,21 @@ public class CurrentMedicationController {
         return ResponseEntity.ok(responses);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CurrentMedicationResponse> update(@PathVariable Long id, @Valid @RequestBody CurrentMedicationRequest request) {
+        var item = currentMedicationService.findById(id).orElse(null);
+        if (item == null) return ResponseEntity.notFound().build();
+        currentUserService.assertProfileOwner(item.getHealthProfile());
+        if (!item.getHealthProfile().getId().equals(request.getHealthProfileId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        item.setMedicationName(request.getMedicationName());
+        item.setDosage(request.getDosage());
+        item.setFrequency(request.getFrequency());
+        item.setNotes(request.getNotes());
+        return ResponseEntity.ok(toResponse(currentMedicationService.saveMedication(item)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMedication(
             @PathVariable Long id) {

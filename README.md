@@ -2,6 +2,8 @@
 
 Digital Health Record Management System for Migrant Workers. This academic project retains its Spring Boot backend, React frontend, PostgreSQL integration, Spring Security, and JWT authentication.
 
+For the laptop-to-smartphone classroom demonstration, use [CLASSROOM_DEMO_GUIDE.md](CLASSROOM_DEMO_GUIDE.md). Its isolated H2 launchers do not restart the normal backend or expose PostgreSQL. A public tunnel requires explicit approval; physical phone acceptance remains a separate verification step.
+
 ## Requirements
 
 - Java 17, Node.js with npm, and PostgreSQL.
@@ -19,7 +21,7 @@ Start the backend from `healthbridge-backend`:
 .\mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--spring.jpa.hibernate.ddl-auto=validate --spring.jpa.show-sql=false"
 ```
 
-These runtime overrides validate the existing schema and prevent SQL output. The existing application configuration still uses `ddl-auto=update`; any schema changes needed for a fresh database must be reviewed separately before starting against it. These checkpoints do not run a migration or delete existing PostgreSQL data.
+Normal configuration now also uses validation-only schema startup. Before starting this version on PostgreSQL, separately review and approve the additive emergency-passport migration described in [EMERGENCY_PASSPORT.md](EMERGENCY_PASSPORT.md). Missing tables must stop startup; do not switch to automatic schema updates. No migration or existing PostgreSQL data operation has been performed by this change.
 
 Start the frontend from `healthbridge-frontend` in another terminal:
 
@@ -68,7 +70,7 @@ The Windows wrapper now handles ordinary `.m2` directories and linked directorie
 
 New sharing sessions require explicit `authorizeConsultation: true`. `medicalRecordIds: []` grants consultation-only access; it never grants access to all records or automatically exposes later consultations. Existing sessions retain their original consultation permissions. Read-only sharing is not a separate capability in the current model. No schema migration is required for these first-time worker changes.
 
-The authenticated passport reuses the allergy, existing-condition, and current-medication APIs. Its permanent HTTPS QR opens `/passport`, a public reference page with no database lookup or clinical information. Health ID inclusion is an explicit per-QR choice, off by default; a displayed reference is unverified and grants no permissions. Download QR, native Share Link (clipboard fallback), and Print Passport are available. The separate, expiring provider QR is still required for record access or consultation entry.
+The authenticated passport reuses the allergy, existing-condition, and current-medication APIs, with worker add/edit/delete forms. Its permanent HTTPS QR uses a random, revocable reference and opens only saved, worker-selected emergency fields. Public sharing is disabled by default. Legacy Health ID references remain nondisclosing. Full medical records and consultation entry still require the separate expiring provider QR. See [EMERGENCY_PASSPORT.md](EMERGENCY_PASSPORT.md) for the additive migration, validation-only startup, environment settings, rollout, and verification checklist. No production migration or deployment has been performed.
 
 Provider access is QR-first. New worker sessions display the QR before the sharing form; manual access codes remain in a fallback disclosure. The provider page clears displayed session data at expiry, but the backend still validates every read/write independently. The live HTTPS/H2 regression also checks concurrent identical consultation retries create exactly one record. Physical phone-camera recognition and public PostgreSQL deployment remain separate acceptance checks.
 

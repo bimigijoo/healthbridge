@@ -42,6 +42,10 @@ public class ProviderAccessLinkService {
                 + URLEncoder.encode(healthId, StandardCharsets.UTF_8) : "");
     }
 
+    public String createEmergencyPassportLink(String reference) {
+        return origin() + "/passport#reference=" + URLEncoder.encode(reference, StandardCharsets.UTF_8);
+    }
+
     private String origin() {
         if (publicOrigin == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,

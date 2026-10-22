@@ -82,6 +82,19 @@ public class AllergyController {
         return ResponseEntity.ok(responses);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<AllergyResponse> update(@PathVariable Long id, @Valid @RequestBody AllergyRequest request) {
+        var item = allergyService.findById(id).orElse(null);
+        if (item == null) return ResponseEntity.notFound().build();
+        currentUserService.assertProfileOwner(item.getHealthProfile());
+        if (!item.getHealthProfile().getId().equals(request.getHealthProfileId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        item.setAllergen(request.getAllergen());
+        item.setReaction(request.getReaction());
+        return ResponseEntity.ok(toResponse(allergyService.saveAllergy(item)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAllergy(
             @PathVariable Long id) {

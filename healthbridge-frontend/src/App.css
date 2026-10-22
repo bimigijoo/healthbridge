@@ -100,6 +100,8 @@ label.ui-recordItem:has(input:checked) { border-color: #408c80; background: #eff
 .public-passport-reference, .ui-infoRow span, .profile-grid strong { overflow-wrap: anywhere; min-width: 0; }
 .passport-clinical ul { list-style: none; padding: 0; margin: 0; }
 .passport-clinical .ui-recordItem { overflow-wrap: anywhere; }
+.emergency-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px 24px; margin: 20px 0; }
+.emergency-option { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; overflow-wrap: anywhere; }
 @media print { .skip-link, .sidebar, .workspace-header, .public-header, .passport-controls, .ui-header button { display: none !important; }
     .app-shell, .workspace { display: block !important; } .workspace-content { padding: 0 !important; } }
 .record-entry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }

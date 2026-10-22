@@ -22,7 +22,8 @@ public final class MobileE2eApplication implements ApplicationContextInitializer
             Map.entry("server.port", "18080"),
             Map.entry("file.upload-dir", "target/mobile-e2e-uploads"),
             Map.entry("healthbridge.public-frontend-base-url", "https://localhost:18443"),
-            Map.entry("healthbridge.cors.allowed-origins", "https://localhost:18443")
+            Map.entry("healthbridge.cors.allowed-origins", "https://localhost:18443"),
+            Map.entry("healthbridge.admin.bootstrap.enabled", "false")
     );
 
     public static void main(String[] args) {
@@ -39,11 +40,15 @@ public final class MobileE2eApplication implements ApplicationContextInitializer
     }
 
     static void verify(ConfigurableEnvironment environment) {
-        if (!Arrays.equals(environment.getActiveProfiles(), new String[]{"mobile-e2e"})) {
-            throw refused("only the mobile-e2e profile is permitted");
+        verify(environment, "mobile-e2e", REQUIRED);
+    }
+
+    static void verify(ConfigurableEnvironment environment, String profile, Map<String, String> required) {
+        if (!Arrays.equals(environment.getActiveProfiles(), new String[]{profile})) {
+            throw refused("only the " + profile + " profile is permitted");
         }
         var binder = Binder.get(environment);
-        REQUIRED.forEach((key, expected) -> {
+        required.forEach((key, expected) -> {
             if (!expected.equals(binder.bind(key, String.class).orElse(null))) {
                 // Do not print effective values: inherited settings may contain credentials.
                 throw refused("unexpected " + key);

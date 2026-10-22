@@ -172,6 +172,17 @@
 
 	<profiles>
 		<profile>
+			<id>classroom-demo</id>
+			<build><plugins><plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<mainClass>com.healthbridge.healthbridgebackend.security.ClassroomDemoApplication</mainClass>
+					<jvmArguments>-Dspring.devtools.restart.enabled=false</jvmArguments>
+				</configuration>
+			</plugin></plugins></build>
+		</profile>
+		<profile>
 			<id>mobile-e2e</id>
 			<build>
 				<plugins>

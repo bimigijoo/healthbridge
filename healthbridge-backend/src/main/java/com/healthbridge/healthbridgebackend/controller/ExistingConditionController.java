@@ -85,6 +85,20 @@ public class ExistingConditionController {
         return ResponseEntity.ok(responses);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ExistingConditionResponse> update(@PathVariable Long id, @Valid @RequestBody ExistingConditionRequest request) {
+        var item = existingConditionService.findById(id).orElse(null);
+        if (item == null) return ResponseEntity.notFound().build();
+        currentUserService.assertProfileOwner(item.getHealthProfile());
+        if (!item.getHealthProfile().getId().equals(request.getHealthProfileId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        item.setConditionName(request.getConditionName());
+        item.setDiagnosedDate(request.getDiagnosedDate());
+        item.setNotes(request.getNotes());
+        return ResponseEntity.ok(toResponse(existingConditionService.saveCondition(item)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCondition(
             @PathVariable Long id) {

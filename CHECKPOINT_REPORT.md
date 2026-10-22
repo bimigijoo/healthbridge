@@ -1,5 +1,17 @@
 # Functional Gap Checkpoint Report
 
+## Classroom QR Checkpoints 5A-5C
+
+- Checkpoint 4 was verified on GitHub at 43a8efbb532e3d8db9ef2e3e71f34171194e7573 before this work; the starting tree was clean.
+- 5A: login-page healthcare-professional entry, sharing QR retry without another session, and provider consent recheck. Frontend lint/build, 59 backend tests/packaging, and 15 focused mocked responsive browser checks passed. Commit 1b97d0c1c564ca863f7fe809158f42067080ad4b was pushed and remotely verified before 5B.
+- 5B: clearer permanent QR privacy/reference labeling, keyed QR state, and anonymous private-clinical denial tests. Frontend lint/build, 60 backend tests/packaging, 12 focused mocked browser checks, and four actual loopback HTTPS/H2 workflows passed. Commit 3c9fb693a685bd14e53724441b06cb98b17b8292 was pushed and remotely verified before 5C.
+- 5C preparation: dedicated H2 classroom launchers, loopback backend 19080, compiled frontend/API proxy 19443, configurable public HTTPS origin/CORS, pre-datasource guard, and CLASSROOM_DEMO_GUIDE.md. Final lint/build passed, all 64 backend tests/packaging passed, four Node configuration safety tests passed, all 60 mocked responsive browser regressions passed, and the actual classroom launcher/proxy/H2 smoke workflow passed.
+- The classroom smoke test uses a simulated public hostname with loopback transport; no API is mocked, but it does not prove tunnel TLS, public reachability, or a physical camera scan. It checks configured QR contents, H2 metadata, host restrictions/CORS, anonymous record scope, consultation/timeline persistence, and revoked reads/writes.
+- Initial classroom verification failures were Windows command quoting and the smoke test's login-response field mismatch. These were fixed before the successful runtime verification; they are not counted as passing runs.
+- Post-test preflight confirmed classroom ports 19080/19443 free. The production JAR excludes H2 and all classroom/mobile test-only classes and configurations.
+- No public tunnel was started, no tool was installed, and the existing backend on 8080 was not restarted. PostgreSQL was not used by these checkpoints.
+- **5C remains uncommitted and incomplete pending tunnel approval and one-step-at-a-time physical smartphone acceptance.** It must be tested, reviewed, committed, pushed, and remotely verified after that acceptance.
+
 Branch: `feature/frontend-foundation`. Existing architecture, JWT security, PostgreSQL integration, and prior committed UI work were retained. This checkpoint series made no PostgreSQL connection, schema migration, patient-data operation, or restart of the application on port 8080.
 
 ## Verification Summary

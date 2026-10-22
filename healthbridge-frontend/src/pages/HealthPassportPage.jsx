@@ -4,12 +4,14 @@ import { useAuth } from "../context/useAuth";
 import { useNavigate } from "react-router-dom";
 import PageStatus from "../components/PageStatus";
 import PassportQr from "../components/PassportQr";
+import EmergencyPassportSettings from "../components/EmergencyPassportSettings";
+import ClinicalRecordsSection from "../components/ClinicalRecordsSection";
 import { Printer } from "lucide-react";
 
 const clinicalSections = [
-    { key: "allergies", endpoint: "allergies", title: "Allergies", name: "allergen", details: ["reaction"], empty: "No allergies recorded." },
-    { key: "conditions", endpoint: "existing-conditions", title: "Chronic & Existing Conditions", name: "conditionName", details: ["diagnosedDate", "notes"], empty: "No conditions recorded." },
-    { key: "medications", endpoint: "current-medications", title: "Current Medications", name: "medicationName", details: ["dosage", "frequency", "notes"], empty: "No current medications recorded." },
+    { key: "allergies", endpoint: "allergies", title: "Allergies", itemLabel: "Allergy", name: "allergen", details: ["reaction"], labels: { allergen: "Allergen", reaction: "Reaction" }, empty: "No allergies recorded." },
+    { key: "conditions", endpoint: "existing-conditions", title: "Chronic & Existing Conditions", itemLabel: "Condition", name: "conditionName", details: ["diagnosedDate", "notes"], labels: { conditionName: "Condition name", diagnosedDate: "Diagnosed date", notes: "Private condition notes" }, empty: "No conditions recorded." },
+    { key: "medications", endpoint: "current-medications", title: "Current Medications", itemLabel: "Medication", name: "medicationName", details: ["dosage", "frequency", "notes"], labels: { medicationName: "Medication name", dosage: "Dosage", frequency: "Frequency", notes: "Private medication notes" }, empty: "No current medications recorded." },
 ];
 
 function HealthPassportPage() {
@@ -20,6 +22,7 @@ function HealthPassportPage() {
     const [clinicalData, setClinicalData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [referenceRevision, setReferenceRevision] = useState(0);
 
     useEffect(() => {
         if (!user?.id) {
@@ -152,22 +155,15 @@ function HealthPassportPage() {
                             </div>
                         </div>
 
-                        <PassportQr key={healthProfile.id} profileId={healthProfile.id} />
+                        <PassportQr key={healthProfile.id + ":" + referenceRevision} profileId={healthProfile.id} />
                     </div>
                 </section>
 
-                {clinicalSections.map(section => <section className="ui-section passport-clinical" key={section.key}>
-                    <h2 className="ui-sectionTitle">{section.title}</h2>
-                    {clinicalData[section.key] === null ? <div className="error-message" role="alert">
-                        {section.title} could not be loaded.
-                        <button type="button" className="link-button" onClick={() => window.location.reload()}>Retry</button>
-                    </div> : clinicalData[section.key]?.length ? <ul className="ui-recordList">
-                        {clinicalData[section.key].map(item => <li className="ui-recordItem" key={item.id}>
-                            <strong>{item[section.name] || "Not recorded"}</strong>
-                            {section.details.map(field => item[field] ? <p key={field}>{item[field]}</p> : null)}
-                        </li>)}
-                    </ul> : <p>{section.empty}</p>}
-                </section>)}
+                <EmergencyPassportSettings key={healthProfile.id} profileId={healthProfile.id}
+                    onReferenceChange={() => setReferenceRevision(value => value + 1)} />
+                {clinicalSections.map(section => <ClinicalRecordsSection key={section.key} section={section}
+                    records={clinicalData[section.key]} profileId={healthProfile.id}
+                    onChange={items => setClinicalData(value => ({ ...value, [section.key]: items }))} />)}
 
                 <section className="ui-section">
                     <h2 className="ui-sectionTitle">

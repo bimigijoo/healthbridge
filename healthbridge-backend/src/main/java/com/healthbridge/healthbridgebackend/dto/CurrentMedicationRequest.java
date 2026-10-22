@@ -6,15 +6,20 @@ import jakarta.validation.constraints.NotNull;
 public class CurrentMedicationRequest {
 
     @NotNull
+    @jakarta.validation.constraints.Positive
     private Long healthProfileId;
 
     @NotBlank
+    @jakarta.validation.constraints.Size(max = 255)
     private String medicationName;
 
+    @jakarta.validation.constraints.Size(max = 255)
     private String dosage;
 
+    @jakarta.validation.constraints.Size(max = 255)
     private String frequency;
 
+    @jakarta.validation.constraints.Size(max = 255)
     private String notes;
 
     public CurrentMedicationRequest() {

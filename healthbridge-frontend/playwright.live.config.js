@@ -16,6 +16,7 @@ export default defineConfig({
                 SPRING_DATASOURCE_DRIVER_CLASS_NAME: "org.h2.Driver",
                 SPRING_DATASOURCE_USERNAME: "sa", SPRING_DATASOURCE_PASSWORD: "", DB_PASSWORD: "",
                 SPRING_JPA_HIBERNATE_DDL_AUTO: "create-drop", SERVER_ADDRESS: "127.0.0.1", SERVER_PORT: "18080",
+                HEALTHBRIDGE_ADMIN_BOOTSTRAP_ENABLED: "false", ADMIN_BOOTSTRAP_EMAIL: "", ADMIN_BOOTSTRAP_PASSWORD: "",
                 JWT_SECRET: "synthetic-mobile-e2e-key-at-least-32-bytes",
                 HEALTHBRIDGE_PUBLIC_FRONTEND_BASE_URL: "https://localhost:18443",
                 HEALTHBRIDGE_CORS_ALLOWED_ORIGINS: "https://localhost:18443" },

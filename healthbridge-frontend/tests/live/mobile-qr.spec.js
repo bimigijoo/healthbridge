@@ -175,7 +175,7 @@ test("zero-record consultation-only QR produces the worker's first consultation"
     } finally { await context.close(); }
 });
 
-test("private passport uses existing clinical APIs and public QR reveals no clinical data", async ({ page, browser }) => {
+test("permanent emergency QR persists selected fields, supports clinical edits, revoke and rotation", async ({ page, browser }) => {
     const { profile, headers } = await registerWorker(page);
     for (const [endpoint, values] of [
         ["allergies", { allergen: "Synthetic passport allergy", reaction: "Synthetic reaction" }],
@@ -185,7 +185,7 @@ test("private passport uses existing clinical APIs and public QR reveals no clin
         const response = await page.request.post(`/api/${endpoint}`, { headers, data: { healthProfileId: profile.id, ...values } });
         expect(response.status()).toBe(201);
     }
-    const qr = page.waitForResponse(response => new URL(response.url()).pathname === `/api/health-profile/${profile.id}/qr`);
+    const qr = page.waitForResponse(response => new URL(response.url()).pathname === `/api/emergency-passport/profile/${profile.id}/qr`);
     await page.goto("/health-passport");
     for (const text of ["Synthetic passport allergy", "Synthetic passport condition", "Synthetic passport medication"]) {
         await expect(page.getByText(text, { exact: true })).toBeVisible();
@@ -194,21 +194,74 @@ test("private passport uses existing clinical APIs and public QR reveals no clin
     const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
     expect(!!decoded).toBe(true);
     const link = new URL(decoded.data);
-    expect(link.origin === "https://localhost:18443" && link.pathname === "/passport" && !link.hash && !link.search).toBe(true);
+    expect(link.origin === "https://localhost:18443" && link.pathname === "/passport" && !link.search).toBe(true);
+    const reference = new URLSearchParams(link.hash.slice(1)).get("reference");
+    expect(/^[A-Za-z0-9_-]{43}$/.test(reference)).toBe(true);
+    expect(link.href.includes(profile.healthId)).toBe(false);
     const download = page.waitForEvent("download");
     await page.getByRole("link", { name: "Download QR" }).click();
     expect((await download).suggestedFilename()).toBe("healthbridge-passport-qr.png");
     const context = await browser.newContext({ ignoreHTTPSErrors: true, viewport: { width: 390, height: 844 } });
     try {
         const publicPage = await context.newPage();
-        let apiCalls = 0;
-        publicPage.on("request", request => { if (new URL(request.url()).pathname.startsWith("/api/")) apiCalls++; });
         await publicPage.goto(link.href);
-        await expect(publicPage.getByRole("heading", { name: "HealthBridge Passport Reference" })).toBeVisible();
-        expect(apiCalls).toBe(0);
+        await expect(publicPage.getByRole("heading", { name: "Health information is private" })).toBeVisible();
         for (const text of [profile.healthId, "Synthetic passport allergy", "Synthetic passport condition", "Synthetic passport medication"]) {
             await expect(publicPage.getByText(text, { exact: true })).toHaveCount(0);
         }
+        await expect(page.getByLabel("Enable public emergency sharing")).not.toBeChecked();
+        await page.getByLabel("Enable public emergency sharing").check();
+        await page.getByLabel("Allergies and reactions").check();
+        await page.getByRole("button", { name: "Save Emergency Preferences" }).click();
+        await expect(page.getByRole("status")).toContainText("preferences saved");
+        await page.reload();
+        await expect(page.getByLabel("Enable public emergency sharing")).toBeChecked();
+        await expect(page.getByLabel("Allergies and reactions")).toBeChecked();
+        await publicPage.goto(link.href);
+        await expect(publicPage.getByRole("heading", { name: "Emergency Health Passport", exact: true })).toBeVisible();
+        await expect(publicPage.getByText("Synthetic passport allergy: Synthetic reaction", { exact: true })).toBeVisible();
+        await expect(publicPage.getByRole("heading", { name: "Current Medications", exact: true })).toHaveCount(0);
+        await expect(publicPage.getByRole("button", { name: "Add Consultation", exact: true })).toHaveCount(0);
+        expect(await publicPage.evaluate(() => localStorage.getItem("healthbridge_token"))).toBeNull();
+        expect(new URL(publicPage.url()).hash).toBe("");
+        const publicHeaders = { "X-HealthBridge-Passport-Reference": reference };
+        const publicResult = await publicPage.request.get("/api/public/emergency-passport", { headers: publicHeaders });
+        expect(publicResult.status()).toBe(200);
+        expect(publicResult.headers()["cache-control"]).toBe("no-store");
+        expect(Object.keys(await publicResult.json())).toEqual(["allergies"]);
+        const clinicalRegion = page.getByRole("region", { name: "Allergies", exact: true });
+        await clinicalRegion.getByRole("button", { name: "Edit Allergy" }).click();
+        await clinicalRegion.getByLabel("Reaction", { exact: true }).fill("Updated synthetic reaction");
+        await clinicalRegion.getByRole("button", { name: "Save Allergy" }).click();
+        await expect(clinicalRegion.getByText("Updated synthetic reaction", { exact: true })).toBeVisible();
+        await publicPage.goto(link.href);
+        await expect(publicPage.getByText("Synthetic passport allergy: Updated synthetic reaction", { exact: true })).toBeVisible();
+        const cannotConsult = await publicPage.request.post("/api/provider-access/consultation", {
+            headers: { "X-HealthBridge-Access-Code": reference, "Idempotency-Key": crypto.randomUUID() },
+            data: { recordDate: "2026-01-15", providerName: "Synthetic", reason: "Denied permanent QR consultation" },
+        });
+        expect(cannotConsult.status()).toBe(403);
+        const cannotRead = await publicPage.request.get(`/api/medical-records/profile/${profile.id}`, { headers: publicHeaders });
+        expect(cannotRead.status()).toBe(401);
+        await page.getByRole("button", { name: "Revoke Public Access" }).click();
+        await expect(page.getByRole("status")).toContainText("disabled");
+        await publicPage.evaluate(() => window.dispatchEvent(new Event("focus")));
+        await expect(publicPage.getByRole("heading", { name: "Health information is private" })).toBeVisible();
+        await expect(publicPage.getByText("Synthetic passport allergy: Updated synthetic reaction", { exact: true })).toHaveCount(0);
+        expect((await publicPage.request.get("/api/public/emergency-passport", { headers: publicHeaders })).status()).toBe(404);
+        await page.getByLabel("Enable public emergency sharing").check();
+        await page.getByRole("button", { name: "Save Emergency Preferences" }).click();
+        await expect(page.getByRole("status")).toContainText("preferences saved");
+        page.on("dialog", dialog => dialog.accept());
+        await page.getByRole("button", { name: "Replace Permanent Reference" }).click();
+        await expect(page.getByRole("status").filter({ hasText: "reference replaced" })).toBeVisible();
+        const replacement = await page.request.get(`/api/emergency-passport/profile/${profile.id}/link`, { headers });
+        const replacementLink = (await replacement.json()).url;
+        expect(replacementLink === link.href).toBe(false);
+        await publicPage.goto(link.href);
+        await expect(publicPage.getByRole("heading", { name: "Health information is private" })).toBeVisible();
+        await publicPage.goto(replacementLink);
+        await expect(publicPage.getByRole("heading", { name: "Emergency Health Passport", exact: true })).toBeVisible();
         expect(await publicPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     } finally { await context.close(); }
 });

@@ -12,6 +12,9 @@ test-results
 test-results-live
 playwright-report
 dist
+dist-classroom
+dist-review-postgres
+test-results-classroom
 dist-ssr
 *.local
 

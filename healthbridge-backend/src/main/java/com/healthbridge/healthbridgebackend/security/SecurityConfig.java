@@ -62,6 +62,9 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/public/emergency-passport")
+                        .permitAll()
+
                         .requestMatchers("/api/auth/**")
                         .permitAll()
 
@@ -110,6 +113,7 @@ public class SecurityConfig {
                         "Authorization",
                         "Content-Type",
                         "X-HealthBridge-Access-Code",
+                        "X-HealthBridge-Passport-Reference",
                         "Idempotency-Key"
                 )
         );

@@ -8,13 +8,17 @@ import java.time.LocalDate;
 public class ExistingConditionRequest {
 
     @NotNull
+    @jakarta.validation.constraints.Positive
     private Long healthProfileId;
 
     @NotBlank
+    @jakarta.validation.constraints.Size(max = 255)
     private String conditionName;
 
+    @jakarta.validation.constraints.PastOrPresent
     private LocalDate diagnosedDate;
 
+    @jakarta.validation.constraints.Size(max = 255)
     private String notes;
 
     public ExistingConditionRequest() {

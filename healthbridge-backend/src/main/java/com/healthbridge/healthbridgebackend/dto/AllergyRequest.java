@@ -6,11 +6,14 @@ import jakarta.validation.constraints.NotNull;
 public class AllergyRequest {
 
     @NotNull
+    @jakarta.validation.constraints.Positive
     private Long healthProfileId;
 
     @NotBlank
+    @jakarta.validation.constraints.Size(max = 255)
     private String allergen;
 
+    @jakarta.validation.constraints.Size(max = 255)
     private String reaction;
 
     public AllergyRequest() {
